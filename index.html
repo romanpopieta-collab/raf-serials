@@ -2,8 +2,8 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamTrack - Хмарна Синхронізація</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StreamTrack - Cloud Sync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -18,6 +18,7 @@
             font-family: 'Inter', -apple-system, sans-serif;
             letter-spacing: -0.01em;
             overflow-x: hidden;
+            touch-action: manipulation;
         }
         .glass {
             background: rgba(28, 28, 30, 0.7);
@@ -28,10 +29,11 @@
         .card-row {
             transition: all 0.2s ease;
             border: 1px solid rgba(255, 255, 255, 0.05);
+            -webkit-tap-highlight-color: transparent;
         }
-        .card-row:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
+        .card-row:active {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(0.98);
         }
         .login-screen {
             background: radial-gradient(circle at center, #111 0%, #000 100%);
@@ -44,14 +46,332 @@
     <!-- Екран авторизації -->
     <div id="authScreen" class="fixed inset-0 z-[1000] login-screen flex items-center justify-center p-4">
         <div class="glass max-w-sm w-full p-8 rounded-3xl text-center shadow-2xl">
-            <h1 class="text-3xl font-black mb-2 tracking-tighter">StreamTrack</h1>
-            <p id="authMessage" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest mb-8">Хмарна синхронізація активована</p>
+            <h1 class="text-3xl font-black mb-1 tracking-tighter text-white">StreamTrack</h1>
+            <p id="authMessage" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest mb-8">Хмарна авторизація</p>
             
-            <div class="space-y-4">
-                <input type="password" id="passwordInput" placeholder="Ваш секретний ключ" 
-                    class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-xl tracking-widest focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all text-white">
-                <button id="loginBtn" onclick="handleAuth()" class="w-full h-12 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-500 transition uppercase text-xs tracking-widest">
-                    Увійти
+            <div class="space-y-3">
+                <input type="text" id="usernameInput" placeholder="Логін (ім'я)" 
+                    class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-white placeholder:text-gray-600">
+                
+                <input type="password" id="passwordInput" placeholder="Пароль" 
+                    class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-white placeholder:text-gray-600">
+                
+                <button id="loginBtn" class="w-full h-14 bg-blue-600 text-white font-black rounded-2xl active:bg-blue-700 transition-all uppercase text-xs tracking-widest mt-4">
+                    Увійти або Створити
                 </button>
             </div>
-            <p class="text-[9px] text-
+            <p class="text-[9px] text-gray-500 mt-6 leading-relaxed uppercase font-bold">
+                Якщо ви вперше — система запам'ятає цей пароль для вказаного логіна.
+            </p>
+        </div>
+    </div>
+
+    <!-- Основний додаток -->
+    <div id="mainApp" class="max-w-5xl mx-auto px-4 py-8 opacity-0 pointer-events-none transition-opacity duration-500">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div class="flex items-center justify-between w-full md:w-auto">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">StreamTrack</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="syncStatus" class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                        <p id="userKeyDisplay" class="text-gray-500 text-[10px] font-bold uppercase tracking-widest"></p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="md:hidden glass px-3 py-2 rounded-lg text-[9px] font-black text-red-400 uppercase tracking-widest">Вийти</button>
+            </div>
+            <button onclick="logout()" class="hidden md:block glass px-4 py-2 rounded-lg text-[10px] font-black hover:bg-red-500/20 text-red-400 transition uppercase tracking-widest">Вийти</button>
+        </header>
+
+        <!-- Search -->
+        <div class="relative mb-8">
+            <input type="text" id="searchInput" placeholder="Знайти серіал у TVMaze..." 
+                class="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 focus:ring-2 focus:ring-blue-500 focus:outline-none text-base text-white transition-all">
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2.5"></path></svg>
+            </div>
+            <div id="searchResults" class="absolute top-full left-0 right-0 glass mt-2 rounded-2xl shadow-2xl z-[100] hidden overflow-hidden border border-white/20 max-h-80 overflow-y-auto"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-6 border-b border-white/5 mb-6 overflow-x-auto no-scrollbar">
+            <button id="tab-watching" class="pb-3 border-b-2 border-blue-500 text-blue-500 text-[10px] font-black uppercase tracking-widest">Дивлюся</button>
+            <button id="tab-planning" class="pb-3 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest">Плани</button>
+            <button id="tab-watched" class="pb-3 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest">Архів</button>
+        </div>
+
+        <div id="gallery" class="flex flex-col gap-3"></div>
+        <div id="emptyState" class="hidden text-center py-20 text-gray-600 uppercase font-bold text-[10px] tracking-widest">Поки що тут порожньо</div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/95 z-[200] hidden items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-md">
+        <div class="glass w-full max-w-2xl max-h-[90vh] rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col translate-y-full transition-transform duration-300" id="modalContainer">
+            <div class="p-6 md:p-8 overflow-y-auto no-scrollbar" id="modalContent"></div>
+            <div class="p-6 border-t border-white/5">
+                <button onclick="closeModal()" class="w-full py-4 bg-white text-black font-black rounded-2xl active:scale-95 transition-all text-[11px] uppercase tracking-widest">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'streamtrack-v2';
+
+        let myShows = [];
+        let currentTab = 'watching';
+        let currentUserData = JSON.parse(localStorage.getItem('streamtrack_user'));
+
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            if (user && currentUserData) {
+                unlockApp();
+                setupSync();
+            }
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', handleAuth);
+        document.getElementById('tab-watching').addEventListener('click', () => setTab('watching'));
+        document.getElementById('tab-planning').addEventListener('click', () => setTab('planning'));
+        document.getElementById('tab-watched').addEventListener('click', () => setTab('watched'));
+
+        async function handleAuth() {
+            const user = document.getElementById('usernameInput').value.trim().toLowerCase();
+            const pass = document.getElementById('passwordInput').value.trim();
+
+            if (user.length < 3 || pass.length < 4) {
+                return showStatus('Логін (3+) та Пароль (4+)', 'red');
+            }
+
+            // Шлях до документа користувача для перевірки пароля
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', `profile_${user}`);
+            
+            try {
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    // Користувач існує, перевіряємо пароль
+                    if (userSnap.data().password === btoa(pass)) {
+                        saveSession(user);
+                    } else {
+                        showStatus('Невірний пароль для цього логіна', 'red');
+                    }
+                } else {
+                    // Новий користувач - реєструємо
+                    await setDoc(userRef, {
+                        username: user,
+                        password: btoa(pass), // Просте хешування для демонстрації
+                        created: Date.now()
+                    });
+                    saveSession(user);
+                }
+            } catch (e) {
+                showStatus('Помилка Firestore (Rules?)', 'red');
+                console.error(e);
+            }
+        }
+
+        function saveSession(username) {
+            currentUserData = { username };
+            localStorage.setItem('streamtrack_user', JSON.stringify(currentUserData));
+            window.location.reload();
+        }
+
+        window.logout = () => {
+            localStorage.removeItem('streamtrack_user');
+            window.location.reload();
+        };
+
+        function unlockApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('userKeyDisplay').innerText = `Користувач: ${currentUserData.username}`;
+            const main = document.getElementById('mainApp');
+            main.classList.replace('opacity-0', 'opacity-100');
+            main.classList.remove('pointer-events-none');
+            setupSearch();
+        }
+
+        function setupSync() {
+            // Колекція серіалів конкретного користувача
+            const dataPath = collection(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`);
+            
+            onSnapshot(dataPath, (snapshot) => {
+                myShows = snapshot.docs.map(doc => doc.data());
+                document.getElementById('syncStatus').classList.replace('bg-yellow-500', 'bg-green-500');
+                document.getElementById('syncStatus').classList.remove('animate-pulse');
+                renderGallery();
+            }, (err) => {
+                showStatus('Синхронізація не вдалася', 'red');
+            });
+        }
+
+        // --- Logic ---
+        async function addShow(show) {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, show.id.toString());
+            await setDoc(docRef, {
+                ...show,
+                userStatus: '⏳ У планах',
+                currentEpisode: 0
+            });
+            document.getElementById('searchResults').classList.add('hidden');
+            document.getElementById('searchInput').value = '';
+            vibrate(20);
+        }
+        window.addShowToFirebase = addShow;
+
+        window.updateProgress = async (id, inc) => {
+            const show = myShows.find(s => s.id === id);
+            const val = Math.max(0, Math.min(show.totalEpisodes || 100, show.currentEpisode + inc));
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
+            await updateDoc(docRef, { 
+                currentEpisode: val,
+                userStatus: val === (show.totalEpisodes || 100) ? '✅ Переглянуто' : '👀 Дивлюсь'
+            });
+            vibrate(10);
+            if (document.getElementById('modal').style.display === 'flex') setTimeout(() => openModal(id), 50);
+        };
+
+        window.changeStatus = async (id, status) => {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
+            await updateDoc(docRef, { userStatus: status });
+            closeModal();
+        };
+
+        window.deleteShow = async (id) => {
+            if (!confirm('Видалити?')) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
+            await deleteDoc(docRef);
+            closeModal();
+        };
+
+        // --- UI ---
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const empty = document.getElementById('emptyState');
+            const statusMap = { watching: '👀 Дивлюсь', planning: '⏳ У планах', watched: '✅ Переглянуто' };
+            const filtered = myShows.filter(s => s.userStatus === statusMap[currentTab]);
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            gallery.innerHTML = filtered.map(show => `
+                <div class="card-row glass rounded-2xl flex items-center p-4 gap-4" onclick="openModal(${show.id})">
+                    <img src="${show.image}" class="w-12 h-16 object-cover rounded-xl shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-sm text-white truncate">${show.name}</div>
+                        <div class="text-[10px] text-gray-400 font-bold mt-1">${show.currentEpisode} / ${show.totalEpisodes || '?'} СЕРІЙ</div>
+                        <div class="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${(show.currentEpisode/(show.totalEpisodes||100))*100}%"></div>
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); updateProgress(${show.id}, 1)" class="w-10 h-10 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 active:scale-90 rounded-xl text-blue-500 hover:text-white font-black text-xl">+</button>
+                </div>
+            `).join('');
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('button[id^="tab-"]').forEach(b => {
+                b.classList.remove('border-blue-500', 'text-blue-500');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById(`tab-${tab}`).classList.add('border-blue-500', 'text-blue-500');
+            renderGallery();
+        }
+
+        window.openModal = (id) => {
+            const show = myShows.find(s => s.id === id);
+            if (!show) return;
+            const content = document.getElementById('modalContent');
+            content.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6 md:gap-8">
+                    <img src="${show.image}" class="w-full md:w-48 rounded-2xl shadow-2xl">
+                    <div class="flex-1">
+                        <h2 class="text-3xl font-black text-white mb-1 tracking-tighter">${show.name}</h2>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase mb-6">Рейтинг: ⭐ ${show.imdb}</p>
+                        
+                        <div class="space-y-4">
+                            <div class="glass p-5 rounded-2xl text-center">
+                                <p class="text-[9px] font-black text-gray-500 uppercase mb-4">Прогрес</p>
+                                <div class="flex items-center justify-around">
+                                    <button onclick="updateProgress(${show.id}, -1)" class="w-12 h-12 bg-white/5 rounded-xl text-2xl">-</button>
+                                    <div class="text-3xl font-black text-white">${show.currentEpisode} <span class="text-xs text-gray-600">/ ${show.totalEpisodes || '?'}</span></div>
+                                    <button onclick="updateProgress(${show.id}, 1)" class="w-12 h-12 bg-blue-600 rounded-xl text-2xl shadow-lg shadow-blue-600/20">+</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="changeStatus(${show.id}, '👀 Дивлюсь')" class="p-4 glass rounded-xl text-[10px] font-black uppercase text-blue-400">Дивлюсь</button>
+                                <button onclick="changeStatus(${show.id}, '✅ Переглянуто')" class="p-4 glass rounded-xl text-[10px] font-black uppercase text-green-400">Архів</button>
+                                <button onclick="deleteShow(${show.id})" class="p-4 glass rounded-xl text-[10px] font-black uppercase text-red-500/60 col-span-2">Видалити</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal').classList.replace('hidden', 'flex');
+            setTimeout(() => document.getElementById('modalContainer').classList.replace('translate-y-full', 'translate-y-0'), 10);
+        }
+
+        window.closeModal = () => {
+            document.getElementById('modalContainer').classList.replace('translate-y-0', 'translate-y-full');
+            setTimeout(() => document.getElementById('modal').classList.replace('flex', 'hidden'), 300);
+        }
+
+        function setupSearch() {
+            const input = document.getElementById('searchInput');
+            const resBox = document.getElementById('searchResults');
+            input.addEventListener('input', debounce(async (e) => {
+                const q = e.target.value.trim();
+                if (q.length < 3) return resBox.classList.add('hidden');
+                const res = await fetch(`https://api.tvmaze.com/search/shows?q=${q}`);
+                const data = await res.json();
+                resBox.innerHTML = data.slice(0, 5).map(i => `
+                    <div class="p-4 hover:bg-white/5 active:bg-white/10 cursor-pointer flex items-center gap-4 border-b border-white/5" 
+                        onclick='window.addShowToFirebase(${JSON.stringify({
+                            id: i.show.id,
+                            name: i.show.name,
+                            image: i.show.image?.medium || 'https://via.placeholder.com/210x295',
+                            imdb: i.show.rating?.average || '0',
+                            totalEpisodes: 24 
+                        })})'>
+                        <img src="${i.show.image?.medium || ''}" class="w-10 h-14 object-cover rounded-lg">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-sm text-white truncate">${i.show.name}</div>
+                            <div class="text-[9px] text-gray-500 uppercase">${i.show.status}</div>
+                        </div>
+                        <div class="text-blue-500 font-black text-xl">+</div>
+                    </div>
+                `).join('');
+                resBox.classList.remove('hidden');
+            }, 500));
+        }
+
+        function debounce(f, t) { let i; return (...a) => { clearTimeout(i); i = setTimeout(() => f(...a), t); }; }
+        function vibrate(ms) { if (window.navigator.vibrate) window.navigator.vibrate(ms); }
+        function showStatus(m, c) {
+            const el = document.getElementById('authMessage');
+            el.innerText = m;
+            el.style.color = c === 'red' ? '#ef4444' : '#3b82f6';
+        }
+    </script>
+</body>
+</html>
