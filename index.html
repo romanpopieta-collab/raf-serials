@@ -56,8 +56,8 @@
                 <input type="password" id="passwordInput" placeholder="Пароль" 
                     class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-white placeholder:text-gray-600">
                 
-                <button id="loginBtn" class="w-full h-14 bg-blue-600 text-white font-black rounded-2xl active:bg-blue-700 transition-all uppercase text-xs tracking-widest mt-4">
-                    Увійти або Створити
+                <button id="loginBtn" class="w-full h-14 bg-blue-600 text-white font-black rounded-2xl active:bg-blue-700 transition-all uppercase text-xs tracking-widest mt-4 flex items-center justify-center">
+                    <span id="loginBtnText">Увійти або Створити</span>
                 </button>
             </div>
             <p class="text-[9px] text-gray-500 mt-6 leading-relaxed uppercase font-bold">
@@ -128,21 +128,29 @@
         let currentTab = 'watching';
         let currentUserData = JSON.parse(localStorage.getItem('streamtrack_user'));
 
+        // Ініціалізація авторизації Firebase
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Auth init error:", e);
             }
         };
-        initAuth();
 
+        // Слухач стану авторизації
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserData) {
                 unlockApp();
                 setupSync();
             }
         });
+
+        // Запуск ініціалізації
+        initAuth();
 
         document.getElementById('loginBtn').addEventListener('click', handleAuth);
         document.getElementById('tab-watching').addEventListener('click', () => setTab('watching'));
@@ -152,43 +160,58 @@
         async function handleAuth() {
             const user = document.getElementById('usernameInput').value.trim().toLowerCase();
             const pass = document.getElementById('passwordInput').value.trim();
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('loginBtnText');
 
             if (user.length < 3 || pass.length < 4) {
                 return showStatus('Логін (3+) та Пароль (4+)', 'red');
             }
 
-            // Шлях до документа користувача для перевірки пароля
+            // Блокуємо кнопку на час запиту
+            btn.disabled = true;
+            btnText.innerText = "Перевірка...";
+            
             const userRef = doc(db, 'artifacts', appId, 'public', 'data', `profile_${user}`);
             
             try {
                 const userSnap = await getDoc(userRef);
                 
                 if (userSnap.exists()) {
-                    // Користувач існує, перевіряємо пароль
+                    // Перевірка існуючого пароля
                     if (userSnap.data().password === btoa(pass)) {
                         saveSession(user);
                     } else {
-                        showStatus('Невірний пароль для цього логіна', 'red');
+                        showStatus('Невірний пароль', 'red');
+                        btn.disabled = false;
+                        btnText.innerText = "Увійти або Створити";
                     }
                 } else {
-                    // Новий користувач - реєструємо
+                    // Реєстрація нового користувача
                     await setDoc(userRef, {
                         username: user,
-                        password: btoa(pass), // Просте хешування для демонстрації
+                        password: btoa(pass),
                         created: Date.now()
                     });
                     saveSession(user);
                 }
             } catch (e) {
-                showStatus('Помилка Firestore (Rules?)', 'red');
+                showStatus('Помилка мережі або Firebase', 'red');
                 console.error(e);
+                btn.disabled = false;
+                btnText.innerText = "Увійти або Створити";
             }
         }
 
         function saveSession(username) {
             currentUserData = { username };
             localStorage.setItem('streamtrack_user', JSON.stringify(currentUserData));
-            window.location.reload();
+            // Замість перезавантаження просто розблокуємо, якщо Firebase вже готовий
+            if (auth.currentUser) {
+                unlockApp();
+                setupSync();
+            } else {
+                window.location.reload();
+            }
         }
 
         window.logout = () => {
@@ -197,6 +220,7 @@
         };
 
         function unlockApp() {
+            if (!currentUserData) return;
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('userKeyDisplay').innerText = `Користувач: ${currentUserData.username}`;
             const main = document.getElementById('mainApp');
@@ -206,21 +230,25 @@
         }
 
         function setupSync() {
-            // Колекція серіалів конкретного користувача
+            if (!currentUserData) return;
             const dataPath = collection(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`);
             
             onSnapshot(dataPath, (snapshot) => {
                 myShows = snapshot.docs.map(doc => doc.data());
-                document.getElementById('syncStatus').classList.replace('bg-yellow-500', 'bg-green-500');
-                document.getElementById('syncStatus').classList.remove('animate-pulse');
+                const sync = document.getElementById('syncStatus');
+                if (sync) {
+                    sync.classList.replace('bg-yellow-500', 'bg-green-500');
+                    sync.classList.remove('animate-pulse');
+                }
                 renderGallery();
             }, (err) => {
-                showStatus('Синхронізація не вдалася', 'red');
+                console.error("Sync error:", err);
             });
         }
 
         // --- Logic ---
         async function addShow(show) {
+            if (!currentUserData) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, show.id.toString());
             await setDoc(docRef, {
                 ...show,
@@ -235,6 +263,7 @@
 
         window.updateProgress = async (id, inc) => {
             const show = myShows.find(s => s.id === id);
+            if (!show) return;
             const val = Math.max(0, Math.min(show.totalEpisodes || 100, show.currentEpisode + inc));
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
             await updateDoc(docRef, { 
@@ -262,6 +291,8 @@
         function renderGallery() {
             const gallery = document.getElementById('gallery');
             const empty = document.getElementById('emptyState');
+            if (!gallery) return;
+
             const statusMap = { watching: '👀 Дивлюсь', planning: '⏳ У планах', watched: '✅ Переглянуто' };
             const filtered = myShows.filter(s => s.userStatus === statusMap[currentTab]);
 
@@ -339,29 +370,32 @@
         function setupSearch() {
             const input = document.getElementById('searchInput');
             const resBox = document.getElementById('searchResults');
+            if (!input) return;
             input.addEventListener('input', debounce(async (e) => {
                 const q = e.target.value.trim();
                 if (q.length < 3) return resBox.classList.add('hidden');
-                const res = await fetch(`https://api.tvmaze.com/search/shows?q=${q}`);
-                const data = await res.json();
-                resBox.innerHTML = data.slice(0, 5).map(i => `
-                    <div class="p-4 hover:bg-white/5 active:bg-white/10 cursor-pointer flex items-center gap-4 border-b border-white/5" 
-                        onclick='window.addShowToFirebase(${JSON.stringify({
-                            id: i.show.id,
-                            name: i.show.name,
-                            image: i.show.image?.medium || 'https://via.placeholder.com/210x295',
-                            imdb: i.show.rating?.average || '0',
-                            totalEpisodes: 24 
-                        })})'>
-                        <img src="${i.show.image?.medium || ''}" class="w-10 h-14 object-cover rounded-lg">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-bold text-sm text-white truncate">${i.show.name}</div>
-                            <div class="text-[9px] text-gray-500 uppercase">${i.show.status}</div>
+                try {
+                    const res = await fetch(`https://api.tvmaze.com/search/shows?q=${q}`);
+                    const data = await res.json();
+                    resBox.innerHTML = data.slice(0, 5).map(i => `
+                        <div class="p-4 hover:bg-white/5 active:bg-white/10 cursor-pointer flex items-center gap-4 border-b border-white/5" 
+                            onclick='window.addShowToFirebase(${JSON.stringify({
+                                id: i.show.id,
+                                name: i.show.name,
+                                image: i.show.image?.medium || 'https://via.placeholder.com/210x295',
+                                imdb: i.show.rating?.average || '0',
+                                totalEpisodes: 24 
+                            })})'>
+                            <img src="${i.show.image?.medium || ''}" class="w-10 h-14 object-cover rounded-lg">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-sm text-white truncate">${i.show.name}</div>
+                                <div class="text-[9px] text-gray-500 uppercase">${i.show.status}</div>
+                            </div>
+                            <div class="text-blue-500 font-black text-xl">+</div>
                         </div>
-                        <div class="text-blue-500 font-black text-xl">+</div>
-                    </div>
-                `).join('');
-                resBox.classList.remove('hidden');
+                    `).join('');
+                    resBox.classList.remove('hidden');
+                } catch (e) { console.error("Search error", e); }
             }, 500));
         }
 
@@ -369,6 +403,7 @@
         function vibrate(ms) { if (window.navigator.vibrate) window.navigator.vibrate(ms); }
         function showStatus(m, c) {
             const el = document.getElementById('authMessage');
+            if (!el) return;
             el.innerText = m;
             el.style.color = c === 'red' ? '#ef4444' : '#3b82f6';
         }
