@@ -77,15 +77,9 @@
                         <p id="userKeyDisplay" class="text-gray-500 text-[10px] font-bold uppercase tracking-widest"></p>
                     </div>
                 </div>
-                <div class="md:hidden flex items-center gap-2">
-                    <button onclick="shareList()" class="glass px-3 py-2 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">Поділитись</button>
-                    <button onclick="logout()" class="glass px-3 py-2 rounded-lg text-[9px] font-black text-red-400 uppercase tracking-widest">Вийти</button>
-                </div>
+                <button onclick="logout()" class="md:hidden glass px-3 py-2 rounded-lg text-[9px] font-black text-red-400 uppercase tracking-widest">Вийти</button>
             </div>
-            <div class="hidden md:flex items-center gap-2">
-            <button onclick="shareList()" class="glass px-4 py-2 rounded-lg text-[10px] font-black hover:bg-blue-500/20 text-blue-400 transition uppercase tracking-widest">Поділитись</button>
-            <button onclick="logout()" class="glass px-4 py-2 rounded-lg text-[10px] font-black hover:bg-red-500/20 text-red-400 transition uppercase tracking-widest">Вийти</button>
-        </div>
+            <button onclick="logout()" class="hidden md:block glass px-4 py-2 rounded-lg text-[10px] font-black hover:bg-red-500/20 text-red-400 transition uppercase tracking-widest">Вийти</button>
         </header>
 
         <!-- Search -->
@@ -151,23 +145,6 @@
             el.style.color = c === 'red' ? '#ef4444' : '#3b82f6';
         }
 
-
-        // --- Helpers (security + UX) ---
-        const getParam = (k) => new URLSearchParams(window.location.search).get(k);
-
-        async function sha256Hex(str) {
-            const enc = new TextEncoder().encode(str);
-            const buf = await crypto.subtle.digest('SHA-256', enc);
-            return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        function cacheKey(username) { return `streamtrack_cache_${username}`; }
-        function loadCache(username) {
-            try { return JSON.parse(localStorage.getItem(cacheKey(username)) || 'null'); } catch { return null; }
-        }
-        function saveCache(username, data) {
-            try { localStorage.setItem(cacheKey(username), JSON.stringify(data)); } catch {}
-        }
         // Guard: якщо конфіг не заповнений
         if (!firebaseConfig || String(firebaseConfig.apiKey || "").startsWith("PASTE_")) {
             showStatus("Встав firebaseConfig у код (див. коментар у скрипті).", "red");
@@ -181,11 +158,6 @@
         let myShows = [];
         let currentTab = 'watching';
         let currentUserData = JSON.parse(localStorage.getItem('streamtrack_user'));
-        const sharedUser = (getParam('shared') || '').trim().toLowerCase();
-        const isReadOnly = !!sharedUser;
-        if (isReadOnly && sharedUser) {
-            currentUserData = { username: sharedUser, shared: true };
-        }
         let isAuthReady = false;
 
         // Ініціалізація авторизації Firebase (GitHub Pages: тільки anonymous)
@@ -235,24 +207,14 @@
 
             btn.disabled = true;
             btnText.innerText = "Перевірка...";
+
             try {
-                // Profiles: artifacts/<appId>/public/data/profiles/<username>
+                // FIX: валідний doc path (even segments)
                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user);
                 const userSnap = await getDoc(userRef);
 
-                const passHash = 'sha256:' + await sha256Hex(pass);
-
                 if (userSnap.exists()) {
-                    const stored = String(userSnap.data().password || '');
-                    const ok =
-                        (stored.startsWith('sha256:') && stored === passHash) ||
-                        (!stored.startsWith('sha256:') && stored === btoa(pass)); // legacy
-
-                    if (ok) {
-                        // Migrate legacy -> sha256
-                        if (!stored.startsWith('sha256:')) {
-                            await updateDoc(userRef, { password: passHash, migrated: Date.now() });
-                        }
+                    if (userSnap.data().password === btoa(pass)) {
                         saveSession(user);
                     } else {
                         showStatus('Невірний пароль', 'red');
@@ -260,7 +222,7 @@
                 } else {
                     await setDoc(userRef, {
                         username: user,
-                        password: passHash,
+                        password: btoa(pass),
                         created: Date.now()
                     });
                     saveSession(user);
@@ -291,36 +253,8 @@
         // make global for onclick
         window.logout = () => {
             localStorage.removeItem('streamtrack_user');
-            // If in shared mode, just go to base URL
-            if (isReadOnly) {
-                window.location.href = window.location.origin + window.location.pathname;
-                return;
-            }
             window.location.reload();
         };
-
-        window.shareList = async () => {
-            if (!currentUserData?.username) return;
-            const url = new URL(window.location.href);
-            url.searchParams.set('shared', currentUserData.username);
-            // remove other params if any (keep only shared)
-            for (const k of [...url.searchParams.keys()]) {
-                if (k !== 'shared') url.searchParams.delete(k);
-            }
-            const shareUrl = url.toString();
-
-            try {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(shareUrl);
-                    alert('Посилання скопійовано');
-                } else {
-                    prompt('Скопіюй посилання:', shareUrl);
-                }
-            } catch {
-                prompt('Скопіюй посилання:', shareUrl);
-            }
-        };
-
 
         function unlockApp() {
             if (!currentUserData) return;
@@ -331,17 +265,7 @@
             if (authScr) authScr.classList.add('hidden');
 
             const userKey = document.getElementById('userKeyDisplay');
-            if (userKey) userKey.innerText = `Користувач: ${currentUserData.username}${isReadOnly ? ' (shared)' : ''}`;
-
-            // Hide logout/share in read-only shared view
-            if (isReadOnly) {
-                document.querySelectorAll('button[onclick="logout()"], button[onclick="shareList()"], div.md\:hidden.flex, div.hidden.md\:flex').forEach(el => {
-                    // Keep share hidden; logout hidden
-                    if (el?.innerText?.includes('Вийти') || el?.innerText?.includes('Поділитись')) {
-                        el.style.display = 'none';
-                    }
-                });
-            }
+            if (userKey) userKey.innerText = `Користувач: ${currentUserData.username}`;
 
             if (mainScr) {
                 mainScr.classList.replace('opacity-0', 'opacity-100');
@@ -354,19 +278,11 @@
         function setupSync() {
             if (!currentUserData || !auth.currentUser) return;
 
-            // Fast render from cache (offline-friendly)
-            const cached = loadCache(currentUserData.username);
-            if (Array.isArray(cached)) {
-                myShows = cached;
-                renderGallery();
-            }
-
             // collection: .../data/lists/<username>/shows/<showId>
             const showsCol = collection(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows');
 
             onSnapshot(showsCol, (snapshot) => {
                 myShows = snapshot.docs.map(d => d.data());
-                saveCache(currentUserData.username, myShows);
                 const sync = document.getElementById('syncStatus');
                 if (sync) {
                     sync.classList.replace('bg-yellow-500', 'bg-green-500');
@@ -380,22 +296,10 @@
 
         // --- Logic ---
         async function addShow(show) {
-            if (isReadOnly) return;
             if (!currentUserData || !auth.currentUser) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', show.id.toString());
-            // Auto total episodes from TVMaze (best-effort)
-            let totalEpisodes = show.totalEpisodes || null;
-            try {
-                const epRes = await fetch(`https://api.tvmaze.com/shows/${show.id}/episodes`);
-                if (epRes.ok) {
-                    const eps = await epRes.json();
-                    totalEpisodes = Array.isArray(eps) ? eps.length : totalEpisodes;
-                }
-            } catch {}
-
             await setDoc(docRef, {
                 ...show,
-                totalEpisodes: totalEpisodes || show.totalEpisodes || null,
                 userStatus: '⏳ У планах',
                 currentEpisode: 0
             });
@@ -406,7 +310,6 @@
         window.addShowToFirebase = addShow;
 
         window.updateProgress = async (id, inc) => {
-            if (isReadOnly) return;
             if (!auth.currentUser || !currentUserData) return;
             const show = myShows.find(s => s.id === id);
             if (!show) return;
@@ -421,7 +324,6 @@
         };
 
         window.changeStatus = async (id, status) => {
-            if (isReadOnly) return;
             if (!auth.currentUser || !currentUserData) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', id.toString());
             await updateDoc(docRef, { userStatus: status });
@@ -429,7 +331,6 @@
         };
 
         window.deleteShow = async (id) => {
-            if (isReadOnly) return;
             if (!auth.currentUser || !currentUserData || !confirm('Видалити?')) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', id.toString());
             await deleteDoc(docRef);
