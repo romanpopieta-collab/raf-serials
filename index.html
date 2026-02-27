@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -48,15 +49,15 @@
         <div class="glass max-w-sm w-full p-8 rounded-3xl text-center shadow-2xl">
             <h1 class="text-3xl font-black mb-1 tracking-tighter text-white">StreamTrack</h1>
             <p id="authMessage" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest mb-8">Хмарна авторизація</p>
-            
+
             <div class="space-y-3">
-                <input type="text" id="usernameInput" placeholder="Логін (ім'я)" 
+                <input type="text" id="usernameInput" placeholder="Логін (ім'я)"
                     class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-white placeholder:text-gray-600">
-                
-                <input type="password" id="passwordInput" placeholder="Пароль" 
+
+                <input type="password" id="passwordInput" placeholder="Пароль"
                     class="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-center text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-white placeholder:text-gray-600">
-                
-                <button id="loginBtn" class="w-full h-14 bg-blue-600 text-white font-black rounded-2xl active:bg-blue-700 disabled:bg-gray-700 transition-all uppercase text-xs tracking-widest mt-4 flex items-center justify-center">
+
+                <button id="loginBtn" type="button" class="w-full h-14 bg-blue-600 text-white font-black rounded-2xl active:bg-blue-700 disabled:bg-gray-700 transition-all uppercase text-xs tracking-widest mt-4 flex items-center justify-center">
                     <span id="loginBtnText">Увійти або Створити</span>
                 </button>
             </div>
@@ -84,7 +85,7 @@
 
         <!-- Search -->
         <div class="relative mb-8">
-            <input type="text" id="searchInput" placeholder="Знайти серіал у TVMaze..." 
+            <input type="text" id="searchInput" placeholder="Знайти серіал у TVMaze..."
                 class="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 focus:ring-2 focus:ring-blue-500 focus:outline-none text-base text-white transition-all">
             <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2.5"></path></svg>
@@ -115,28 +116,54 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // =============================
+        // FIX: GitHub Pages НЕ має __firebase_config / __app_id / __initial_auth_token.
+        // Тут треба ЯВНО вставити firebaseConfig свого проєкту.
+        //
+        // Як взяти:
+        // Firebase Console → Project settings → Your apps (Web) → Firebase SDK snippet → Config
+        // =============================
+        const firebaseConfig = {
+            apiKey: "PASTE_YOUR_API_KEY",
+            authDomain: "PASTE_YOUR_AUTH_DOMAIN",
+            projectId: "PASTE_YOUR_PROJECT_ID",
+            storageBucket: "PASTE_YOUR_STORAGE_BUCKET",
+            messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID",
+            appId: "PASTE_YOUR_APP_ID"
+        };
+
+        const appId = "streamtrack-v2"; // будь-який рядок, але стабільний
+
+        // --- UI status ---
+        function showStatus(m, c) {
+            const el = document.getElementById('authMessage');
+            if (!el) return;
+            el.innerText = m;
+            el.style.color = c === 'red' ? '#ef4444' : '#3b82f6';
+        }
+
+        // Guard: якщо конфіг не заповнений
+        if (!firebaseConfig || String(firebaseConfig.apiKey || "").startsWith("PASTE_")) {
+            showStatus("Куку єпта).", "red");
+            throw new Error("Missing firebaseConfig");
+        }
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'streamtrack-v2';
 
         let myShows = [];
         let currentTab = 'watching';
         let currentUserData = JSON.parse(localStorage.getItem('streamtrack_user'));
         let isAuthReady = false;
 
-        // Ініціалізація авторизації Firebase
+        // Ініціалізація авторизації Firebase (GitHub Pages: тільки anonymous)
         const initAuth = async () => {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
                 isAuthReady = true;
             } catch (e) {
                 console.error("Auth init error:", e);
@@ -144,7 +171,6 @@
             }
         };
 
-        // Слухач стану авторизації
         onAuthStateChanged(auth, (user) => {
             if (user && currentUserData) {
                 unlockApp();
@@ -152,13 +178,16 @@
             }
         });
 
-        // Запуск ініціалізації
         initAuth();
 
+        // listeners
         document.getElementById('loginBtn').addEventListener('click', handleAuth);
         document.getElementById('tab-watching').addEventListener('click', () => setTab('watching'));
         document.getElementById('tab-planning').addEventListener('click', () => setTab('planning'));
         document.getElementById('tab-watched').addEventListener('click', () => setTab('watched'));
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAuth();
+        });
 
         async function handleAuth() {
             const user = document.getElementById('usernameInput').value.trim().toLowerCase();
@@ -167,10 +196,10 @@
             const btnText = document.getElementById('loginBtnText');
 
             if (user.length < 3 || pass.length < 4) {
-                return showStatus('Логін (3+) та Пароль (4+)', 'red');
+                showStatus('Логін (3+) та Пароль (4+)', 'red');
+                return;
             }
 
-            // Чекаємо, поки Firebase ініціалізується
             if (!isAuthReady) {
                 btnText.innerText = "Зачекайте...";
                 await initAuth();
@@ -178,21 +207,19 @@
 
             btn.disabled = true;
             btnText.innerText = "Перевірка...";
-            
+
             try {
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', `profile_${user}`);
+                // FIX: валідний doc path (even segments)
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user);
                 const userSnap = await getDoc(userRef);
-                
+
                 if (userSnap.exists()) {
                     if (userSnap.data().password === btoa(pass)) {
                         saveSession(user);
                     } else {
                         showStatus('Невірний пароль', 'red');
-                        btn.disabled = false;
-                        btnText.innerText = "Увійти або Створити";
                     }
                 } else {
-                    // Реєстрація нового
                     await setDoc(userRef, {
                         username: user,
                         password: btoa(pass),
@@ -201,27 +228,29 @@
                     saveSession(user);
                 }
             } catch (e) {
-                showStatus('Помилка доступу до бази', 'red');
                 console.error("Firestore error:", e);
-                btn.disabled = false;
+                showStatus('Помилка доступу до бази', 'red');
                 btnText.innerText = "Спробувати ще раз";
+                return;
+            } finally {
+                btn.disabled = false;
+                if (btnText.innerText === "Перевірка...") btnText.innerText = "Увійти або Створити";
             }
         }
 
         function saveSession(username) {
             currentUserData = { username };
             localStorage.setItem('streamtrack_user', JSON.stringify(currentUserData));
-            
-            // Якщо Firebase вже авторизований, просто переходимо далі
+
             if (auth.currentUser) {
                 unlockApp();
                 setupSync();
             } else {
-                // Якщо чомусь ще ні - перезавантажуємо для чистого стану
                 window.location.reload();
             }
         }
 
+        // make global for onclick
         window.logout = () => {
             localStorage.removeItem('streamtrack_user');
             window.location.reload();
@@ -229,29 +258,31 @@
 
         function unlockApp() {
             if (!currentUserData) return;
-            
+
             const authScr = document.getElementById('authScreen');
             const mainScr = document.getElementById('mainApp');
-            
+
             if (authScr) authScr.classList.add('hidden');
-            
-            document.getElementById('userKeyDisplay').innerText = `Користувач: ${currentUserData.username}`;
-            
+
+            const userKey = document.getElementById('userKeyDisplay');
+            if (userKey) userKey.innerText = `Користувач: ${currentUserData.username}`;
+
             if (mainScr) {
                 mainScr.classList.replace('opacity-0', 'opacity-100');
                 mainScr.classList.remove('pointer-events-none');
             }
-            
+
             setupSearch();
         }
 
         function setupSync() {
             if (!currentUserData || !auth.currentUser) return;
-            
-            const dataPath = collection(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`);
-            
-            onSnapshot(dataPath, (snapshot) => {
-                myShows = snapshot.docs.map(doc => doc.data());
+
+            // collection: .../data/lists/<username>/shows/<showId>
+            const showsCol = collection(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows');
+
+            onSnapshot(showsCol, (snapshot) => {
+                myShows = snapshot.docs.map(d => d.data());
                 const sync = document.getElementById('syncStatus');
                 if (sync) {
                     sync.classList.replace('bg-yellow-500', 'bg-green-500');
@@ -266,7 +297,7 @@
         // --- Logic ---
         async function addShow(show) {
             if (!currentUserData || !auth.currentUser) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, show.id.toString());
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', show.id.toString());
             await setDoc(docRef, {
                 ...show,
                 userStatus: '⏳ У планах',
@@ -279,12 +310,12 @@
         window.addShowToFirebase = addShow;
 
         window.updateProgress = async (id, inc) => {
-            if (!auth.currentUser) return;
+            if (!auth.currentUser || !currentUserData) return;
             const show = myShows.find(s => s.id === id);
             if (!show) return;
-            const val = Math.max(0, Math.min(show.totalEpisodes || 100, show.currentEpisode + inc));
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
-            await updateDoc(docRef, { 
+            const val = Math.max(0, Math.min(show.totalEpisodes || 100, (show.currentEpisode || 0) + inc));
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', id.toString());
+            await updateDoc(docRef, {
                 currentEpisode: val,
                 userStatus: val === (show.totalEpisodes || 100) ? '✅ Переглянуто' : '👀 Дивлюсь'
             });
@@ -293,15 +324,15 @@
         };
 
         window.changeStatus = async (id, status) => {
-            if (!auth.currentUser) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
+            if (!auth.currentUser || !currentUserData) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', id.toString());
             await updateDoc(docRef, { userStatus: status });
             closeModal();
         };
 
         window.deleteShow = async (id) => {
-            if (!auth.currentUser || !confirm('Видалити?')) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', `list_${currentUserData.username}`, id.toString());
+            if (!auth.currentUser || !currentUserData || !confirm('Видалити?')) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lists', currentUserData.username, 'shows', id.toString());
             await deleteDoc(docRef);
             closeModal();
         };
@@ -327,9 +358,9 @@
                     <img src="${show.image}" class="w-12 h-16 object-cover rounded-xl shrink-0">
                     <div class="flex-1 min-w-0">
                         <div class="font-bold text-sm text-white truncate">${show.name}</div>
-                        <div class="text-[10px] text-gray-400 font-bold mt-1">${show.currentEpisode} / ${show.totalEpisodes || '?'} СЕРІЙ</div>
+                        <div class="text-[10px] text-gray-400 font-bold mt-1">${show.currentEpisode || 0} / ${show.totalEpisodes || '?'} СЕРІЙ</div>
                         <div class="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${(show.currentEpisode/(show.totalEpisodes||100))*100}%"></div>
+                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${(((show.currentEpisode||0)/(show.totalEpisodes||100))*100)}%"></div>
                         </div>
                     </div>
                     <button onclick="event.stopPropagation(); updateProgress(${show.id}, 1)" class="w-10 h-10 flex items-center justify-center bg-blue-600/10 hover:bg-blue-600 active:scale-90 rounded-xl text-blue-500 hover:text-white font-black text-xl">+</button>
@@ -357,13 +388,13 @@
                     <div class="flex-1">
                         <h2 class="text-3xl font-black text-white mb-1 tracking-tighter">${show.name}</h2>
                         <p class="text-[10px] text-gray-500 font-bold uppercase mb-6">Рейтинг: ⭐ ${show.imdb}</p>
-                        
+
                         <div class="space-y-4">
                             <div class="glass p-5 rounded-2xl text-center">
                                 <p class="text-[9px] font-black text-gray-500 uppercase mb-4">Прогрес</p>
                                 <div class="flex items-center justify-around">
                                     <button onclick="updateProgress(${show.id}, -1)" class="w-12 h-12 bg-white/5 rounded-xl text-2xl">-</button>
-                                    <div class="text-3xl font-black text-white">${show.currentEpisode} <span class="text-xs text-gray-600">/ ${show.totalEpisodes || '?'}</span></div>
+                                    <div class="text-3xl font-black text-white">${show.currentEpisode || 0} <span class="text-xs text-gray-600">/ ${show.totalEpisodes || '?'}</span></div>
                                     <button onclick="updateProgress(${show.id}, 1)" class="w-12 h-12 bg-blue-600 rounded-xl text-2xl shadow-lg shadow-blue-600/20">+</button>
                                 </div>
                             </div>
@@ -390,20 +421,21 @@
             const input = document.getElementById('searchInput');
             const resBox = document.getElementById('searchResults');
             if (!input) return;
+
             input.addEventListener('input', debounce(async (e) => {
                 const q = e.target.value.trim();
                 if (q.length < 3) return resBox.classList.add('hidden');
                 try {
-                    const res = await fetch(`https://api.tvmaze.com/search/shows?q=${q}`);
+                    const res = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`);
                     const data = await res.json();
                     resBox.innerHTML = data.slice(0, 5).map(i => `
-                        <div class="p-4 hover:bg-white/5 active:bg-white/10 cursor-pointer flex items-center gap-4 border-b border-white/5" 
+                        <div class="p-4 hover:bg-white/5 active:bg-white/10 cursor-pointer flex items-center gap-4 border-b border-white/5"
                             onclick='window.addShowToFirebase(${JSON.stringify({
                                 id: i.show.id,
                                 name: i.show.name,
                                 image: i.show.image?.medium || 'https://via.placeholder.com/210x295',
                                 imdb: i.show.rating?.average || '0',
-                                totalEpisodes: 24 
+                                totalEpisodes: 24
                             })})'>
                             <img src="${i.show.image?.medium || ''}" class="w-10 h-14 object-cover rounded-lg">
                             <div class="flex-1 min-w-0">
@@ -420,12 +452,6 @@
 
         function debounce(f, t) { let i; return (...a) => { clearTimeout(i); i = setTimeout(() => f(...a), t); }; }
         function vibrate(ms) { if (window.navigator.vibrate) window.navigator.vibrate(ms); }
-        function showStatus(m, c) {
-            const el = document.getElementById('authMessage');
-            if (!el) return;
-            el.innerText = m;
-            el.style.color = c === 'red' ? '#ef4444' : '#3b82f6';
-        }
     </script>
 </body>
 </html>
