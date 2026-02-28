@@ -1,860 +1,638 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Raf Serials</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamTrack - Твій серіальний всесвіт</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --apple-bg: #000000;
+            --apple-card: #1c1c1e;
+            --apple-accent: #0071e3;
+        }
+        body {
+            background-color: var(--apple-bg);
+            color: #f5f5f7;
+            font-family: 'Inter', -apple-system, sans-serif;
+            letter-spacing: -0.01em;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .glass {
+            background: rgba(28, 28, 30, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-row {
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .card-row:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .status-pill {
+            font-size: 8px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+        .tab-counter {
+            font-size: 9px;
+            margin-left: 4px;
+            opacity: 0.6;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  <style>
-    :root {
-      --apple-bg: #000000;
-      --apple-card: #1c1c1e;
-      --apple-accent: #0071e3;
-    }
-    body {
-      background-color: var(--apple-bg);
-      color: #f5f5f7;
-      font-family: 'Inter', -apple-system, sans-serif;
-      letter-spacing: -0.01em;
-      overflow-x: hidden;
-      margin: 0;
-      padding: 0;
-    }
-    .glass {
-      background: rgba(28, 28, 30, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .card-row {
-      transition: all 0.2s ease;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .card-row:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-    .status-pill {
-      font-size: 9px;
-      padding: 2px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    .tab-counter {
-      font-size: 10px;
-      margin-left: 6px;
-      opacity: 0.7;
-    }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #000; }
-    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-    .season-group:not(:last-child) {
-      margin-bottom: 1.25rem;
-    }
-    #app { opacity: 0; transition: opacity 0.3s ease; }
-    #app.ready { opacity: 1; }
-
-    /* Mobile improvements */
-    @media (max-width: 420px) {
-      .mobile-tight { padding-left: 14px; padding-right: 14px; }
-    }
-  </style>
+        .season-group:not(:last-child) {
+            margin-bottom: 1.5rem;
+        }
+        #app { opacity: 0; transition: opacity 0.3s ease; }
+        #app.ready { opacity: 1; }
+    </style>
 </head>
-
 <body class="min-h-screen">
-  <div id="app" class="max-w-5xl mx-auto px-4 mobile-tight py-6 md:py-8">
-    <!-- Header -->
-    <header class="flex items-center justify-between mb-6 md:mb-8 gap-3">
-      <div class="min-w-0">
-        <h1 class="text-3xl md:text-3xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent truncate">
-          Raf Serials
-        </h1>
-        <p class="text-gray-500 text-[10px] md:text-[10px] font-bold uppercase tracking-widest">Трекер серіалів</p>
-      </div>
-
-      <div class="flex items-center gap-2 shrink-0">
-        <button onclick="enableNotifications()" title="Нотифікації" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2">
-          🔔
-          <span class="hidden md:inline">Нотиф</span>
-        </button>
-
-        <button onclick="exportData()" title="Бекап" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="3"></path></svg>
-          Бекап
-        </button>
-
-        <label title="Імпорт" class="glass px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer hover:bg-white/10 transition uppercase flex items-center gap-2">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-width="3"></path></svg>
-          Імпорт
-          <input type="file" class="hidden" onchange="importData(event)">
-        </label>
-      </div>
-    </header>
-
-    <!-- Search -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-6 md:mb-8">
-      <div class="lg:col-span-8 relative">
-        <input type="text" id="searchInput" autocomplete="off" placeholder="Пошук серіалів..." 
-          class="w-full h-11 md:h-10 bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 focus:ring-1 focus:ring-blue-500 focus:outline-none text-[14px] md:text-sm transition-all">
-        <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-500">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2.5"></path></svg>
-        </div>
-        <div id="searchResults" class="absolute top-full left-0 right-0 glass mt-1 rounded-lg shadow-2xl z-[100] hidden overflow-hidden border border-white/20"></div>
-      </div>
-
-      <div class="lg:col-span-4">
-        <select id="sortOrder" onchange="renderGallery()" class="w-full h-11 md:h-10 glass rounded-lg px-3 appearance-none cursor-pointer text-[11px] md:text-xs font-bold uppercase tracking-widest outline-none">
-          <option value="dateAdded">📅 Дата додавання</option>
-          <option value="newest">📺 Свіжі серії</option>
-          <option value="alphabet">🔤 Алфавіт</option>
-          <option value="rating">⭐️ Рейтинг IMDb</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 mb-5 md:mb-6 no-scrollbar overflow-x-auto">
-      <button onclick="setTab('watching')" id="tab-watching" class="pb-2 border-b-2 border-blue-500 text-blue-500 text-[11px] md:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-        Дивлюся <span class="tab-counter" id="count-watching">(0)</span>
-      </button>
-      <button onclick="setTab('planning')" id="tab-planning" class="pb-2 border-b-2 border-transparent text-gray-500 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
-        У планах <span class="tab-counter" id="count-planning">(0)</span>
-      </button>
-      <button onclick="setTab('watched')" id="tab-watched" class="pb-2 border-b-2 border-transparent text-gray-500 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
-        Переглянуто <span class="tab-counter" id="count-watched">(0)</span>
-      </button>
-      <button onclick="setTab('all')" id="tab-all" class="pb-2 border-b-2 border-transparent text-gray-500 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
-        Усі <span class="tab-counter" id="count-all">(0)</span>
-      </button>
-      <button onclick="setTab('archive')" id="tab-archive" class="pb-2 border-b-2 border-transparent text-gray-500 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
-        Архів <span class="tab-counter" id="count-archive">(0)</span>
-      </button>
-      <button onclick="setTab('trends')" id="tab-trends" class="pb-2 border-b-2 border-transparent text-amber-500/70 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:text-amber-500 whitespace-nowrap">
-        🔥 Тренди
-      </button>
-    </div>
-
-    <!-- Gallery / List -->
-    <div id="gallery" class="flex flex-col gap-2"></div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden text-center py-16 md:py-20 text-gray-600">
-      <p class="text-sm font-bold uppercase tracking-widest">Тут поки порожньо</p>
-    </div>
-  </div>
-
-  <!-- Modal -->
-  <div id="modal" class="fixed inset-0 bg-black/95 z-[200] hidden items-center justify-center p-3 md:p-4 backdrop-blur-sm">
-    <div class="glass w-full max-w-3xl max-h-[92vh] md:max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col scale-95 transition-transform duration-200" id="modalContainer">
-      <div class="p-4 md:p-8 overflow-y-auto no-scrollbar flex-1" id="modalContent"></div>
-      <div class="p-3 md:p-4 border-t border-white/5 flex justify-between items-center bg-black/20">
-        <div id="modalActions" class="flex gap-2"></div>
-        <button onclick="closeModal()" class="px-5 md:px-6 py-2 bg-white text-black font-black rounded-lg hover:bg-gray-200 transition text-[11px] md:text-[10px] uppercase">
-          Закрити
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    /* =========================
-       CORE APP
-    ========================= */
-
-    function esc(s='') {
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[m]));
-    }
-
-    function fmtDate(iso) {
-      if (!iso) return '';
-      const [y,m,d] = String(iso).split('-');
-      if (!y || !m || !d) return iso;
-      return `${d}.${m}.${y}`;
-    }
-
-    function debounce(fn, ms=300) {
-      let t;
-      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-    }
-
-    function getLastAiredEpisode(show) {
-      if (!show?.episodes?.length) return null;
-      const aired = show.episodes
-        .filter(e => e.airdate)
-        .slice()
-        .sort((a,b) => new Date(a.airdate) - new Date(b.airdate));
-      return aired[aired.length - 1] || null;
-    }
-
-    function getLatestWatchedProgress(show) {
-      if (!show?.episodes?.length) return { season: null, number: null };
-      const watched = show.episodes.filter(e => e.watched);
-      if (!watched.length) return { season: null, number: null };
-      watched.sort((a,b) => {
-        if (a.season !== b.season) return a.season - b.season;
-        return a.number - b.number;
-      });
-      const last = watched[watched.length - 1];
-      return { season: last.season, number: last.number };
-    }
-
-    // Дані
-    let myShows = [];
-    try { myShows = JSON.parse(localStorage.getItem('streamTrack_shows')) || []; }
-    catch(e) { myShows = []; }
-
-    // Важливо для Firebase sync
-    window.myShows = myShows;
-    window.setMyShows = (v) => { myShows = Array.isArray(v) ? v : []; window.myShows = myShows; };
-
-    let currentTab = 'watching';
-    let trendsMode = 'now'; // now | top
-    const TVMAZE_API = 'https://api.tvmaze.com';
-
-    // Нотиф-стан (щоб не спамити)
-    const NOTIFY_KEY = 'raf_serials_notify_state';
-    function getNotifyState() {
-      try { return JSON.parse(localStorage.getItem(NOTIFY_KEY) || '{}') || {}; }
-      catch { return {}; }
-    }
-    function setNotifyState(state) {
-      localStorage.setItem(NOTIFY_KEY, JSON.stringify(state || {}));
-    }
-
-    // Запуск
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('app').classList.add('ready');
-      updateCounters();
-      renderGallery();
-      setupSearch();
-
-      // перевірка нових серій (при старті + раз на 6 год)
-      checkForNewEpisodes();
-      setInterval(checkForNewEpisodes, 6 * 60 * 60 * 1000);
-    });
-
-    function updateCounters() {
-      const counts = {
-        watching: myShows.filter(s => s.userStatus === '👀 Дивлюсь').length,
-        planning: myShows.filter(s => s.userStatus === '⏳ У планах').length,
-        watched: myShows.filter(s => s.userStatus === '✅ Переглянуто').length,
-        all: myShows.length,
-        archive: myShows.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended').length
-      };
-
-      for (const key in counts) {
-        const el = document.getElementById(`count-${key}`);
-        if (el) el.innerText = `(${counts[key]})`;
-      }
-    }
-
-    function setTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('button[id^="tab-"]').forEach(b => {
-        b.classList.remove('border-blue-500', 'text-blue-500');
-        b.classList.remove('text-amber-500', 'text-amber-500/70');
-        b.classList.add('border-transparent', 'text-gray-500');
-      });
-
-      const activeTab = document.getElementById(`tab-${tab}`);
-      if (activeTab) {
-        if (tab === 'trends') {
-          activeTab.classList.remove('text-gray-500');
-          activeTab.classList.add('text-amber-500');
-        } else {
-          activeTab.classList.remove('border-transparent', 'text-gray-500');
-          activeTab.classList.add('border-blue-500', 'text-blue-500');
-        }
-      }
-
-      if (tab === 'trends') loadTrends(trendsMode);
-      else renderGallery();
-    }
-
-    async function loadTrends(mode = 'now') {
-      trendsMode = mode;
-      const gallery = document.getElementById('gallery');
-
-      gallery.innerHTML = `
-        <div class="flex gap-2 mb-3">
-          <button class="glass px-3 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-white/10 ${mode==='now'?'bg-white/10':''}" onclick="loadTrends('now')">Зараз</button>
-          <button class="glass px-3 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-white/10 ${mode==='top'?'bg-white/10':''}" onclick="loadTrends('top')">Топ</button>
-        </div>
-        <div id="trendsList" class="flex flex-col gap-2"></div>
-      `;
-
-      const list = document.getElementById('trendsList');
-      list.innerHTML = '<div class="text-center py-10 text-xs font-bold text-gray-500 animate-pulse uppercase tracking-widest">Завантаження...</div>';
-
-      try {
-        const myIds = new Set(myShows.map(s => s.id));
-        let shows = [];
-
-        if (mode === 'now') {
-          const today = new Date().toISOString().slice(0,10);
-          const res = await fetch(`${TVMAZE_API}/schedule?country=US&date=${today}`);
-          const data = await res.json(); // episodes with .show
-
-          const map = new Map();
-          for (const item of data) {
-            const sh = item.show;
-            if (!sh?.id) continue;
-            if (myIds.has(sh.id)) continue;
-            if (!map.has(sh.id)) map.set(sh.id, sh);
-          }
-          shows = Array.from(map.values()).slice(0, 100);
-        } else {
-          const res = await fetch(`${TVMAZE_API}/shows?page=0`);
-          if (!res.ok) throw new Error("API limit");
-          const allData = await res.json();
-          allData.sort((a, b) => (b.rating?.average || 0) - (a.rating?.average || 0));
-          shows = allData.filter(show => !myIds.has(show.id)).slice(0, 100);
-        }
-
-        if (!shows.length) {
-          list.innerHTML = '<div class="text-center py-10 text-gray-500 uppercase font-black text-[10px]">Нічого не знайдено</div>';
-          return;
-        }
-
-        list.innerHTML = shows.map(show => `
-          <div class="card-row glass rounded-xl flex items-center p-3 gap-4">
-            <img src="${show.image?.medium || 'https://via.placeholder.com/210x295?text=No+Img'}" class="w-12 h-16 md:w-10 md:h-14 object-cover rounded shadow-lg shrink-0 grayscale hover:grayscale-0 transition-all">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-[15px] md:text-sm text-white truncate">${esc(show.name)}</span>
-                <span class="text-[10px] font-bold text-amber-500">IMDb ${show.rating?.average || 'N/A'}</span>
-              </div>
-              <div class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">${esc(show.genres?.slice(0,2).join(' • ') || 'Серіал')}</div>
+    <div id="app" class="max-w-5xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">StreamTrack</h1>
+                <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Цифровий Архів Медіа</p>
             </div>
-            <button onclick="addShow(${show.id}, true)" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition shrink-0">Додати</button>
-          </div>
-        `).join('');
-      } catch (err) { 
-        list.innerHTML = '<div class="text-center py-10 text-red-500 font-bold uppercase text-[10px]">Помилка з\'єднання</div>'; 
-      }
-    }
 
-    function setupSearch() {
-      const input = document.getElementById('searchInput');
-      const resultsDiv = document.getElementById('searchResults');
+            <div class="flex items-center gap-2">
+                <!-- Firebase auth buttons will be injected here -->
 
-      let controller = null;
+                <button onclick="exportData()" title="Бекап" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="3"></path></svg>
+                    Бекап
+                </button>
+                <label title="Імпорт" class="glass px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer hover:bg-white/10 transition uppercase flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-width="3"></path></svg>
+                    Імпорт
+                    <input type="file" class="hidden" onchange="importData(event)">
+                </label>
+            </div>
+        </header>
 
-      const run = debounce(async () => {
-        const query = input.value.trim();
-        if (query.length < 3) { resultsDiv.classList.add('hidden'); return; }
-
-        try {
-          if (controller) controller.abort();
-          controller = new AbortController();
-
-          const res = await fetch(`${TVMAZE_API}/search/shows?q=${encodeURIComponent(query)}`, { signal: controller.signal });
-          const data = await res.json();
-
-          if (data.length === 0) {
-            resultsDiv.innerHTML = '<div class="p-4 text-[10px] text-gray-500 uppercase font-bold text-center">Нічого не знайдено</div>';
-          } else {
-            resultsDiv.innerHTML = data.slice(0, 10).map(item => `
-              <div onclick="addShow(${item.show.id})" class="p-3 hover:bg-white/10 cursor-pointer flex gap-3 border-b border-white/5 last:border-0">
-                <img src="${item.show.image?.medium || 'https://via.placeholder.com/210x295?text=?'}" class="w-10 h-12 object-cover rounded shadow">
-                <div class="min-w-0">
-                  <div class="font-bold text-[13px] md:text-xs text-white truncate">${esc(item.show.name)}</div>
-                  <div class="text-[10px] text-gray-500 uppercase">${esc(item.show.status || '')}</div>
+        <!-- Search -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-8">
+            <div class="lg:col-span-8 relative">
+                <input type="text" id="searchInput" autocomplete="off" placeholder="Швидкий пошук нових серіалів..."
+                    class="w-full h-10 bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 focus:ring-1 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2.5"></path></svg>
                 </div>
-              </div>
-            `).join('');
-          }
-          resultsDiv.classList.remove('hidden');
-        } catch (err) {
-          if (err.name !== 'AbortError') console.error(err);
+                <div id="searchResults" class="absolute top-full left-0 right-0 glass mt-1 rounded-lg shadow-2xl z-[100] hidden overflow-hidden border border-white/20"></div>
+            </div>
+
+            <div class="lg:col-span-4">
+                <select id="sortOrder" onchange="renderGallery()" class="w-full h-10 glass rounded-lg px-3 appearance-none cursor-pointer text-xs font-bold uppercase tracking-widest outline-none">
+                    <option value="dateAdded">📅 Дата додавання</option>
+                    <option value="newest">📺 Свіжі серії</option>
+                    <option value="alphabet">🔤 Алфавіт</option>
+                    <option value="rating">⭐️ Рейтинг IMDb</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 mb-6 no-scrollbar overflow-x-auto">
+            <button onclick="setTab('watching')" id="tab-watching" class="pb-2 border-b-2 border-blue-500 text-blue-500 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                Дивлюся <span class="tab-counter" id="count-watching">(0)</span>
+            </button>
+            <button onclick="setTab('planning')" id="tab-planning" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                У планах <span class="tab-counter" id="count-planning">(0)</span>
+            </button>
+            <button onclick="setTab('watched')" id="tab-watched" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Переглянуто <span class="tab-counter" id="count-watched">(0)</span>
+            </button>
+            <button onclick="setTab('all')" id="tab-all" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Усі <span class="tab-counter" id="count-all">(0)</span>
+            </button>
+            <button onclick="setTab('archive')" id="tab-archive" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Архів <span class="tab-counter" id="count-archive">(0)</span>
+            </button>
+            <button onclick="setTab('trends')" id="tab-trends" class="pb-2 border-b-2 border-transparent text-amber-500/70 text-[10px] font-black uppercase tracking-widest hover:text-amber-500 whitespace-nowrap">
+                🔥 Тренди
+            </button>
+        </div>
+
+        <!-- Gallery / List -->
+        <div id="gallery" class="flex flex-col gap-2"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-20 text-gray-600">
+            <p class="text-sm font-bold uppercase tracking-widest">Тут поки порожньо</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/95 z-[200] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="glass w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col scale-95 transition-transform duration-200" id="modalContainer">
+            <div class="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1" id="modalContent"></div>
+            <div class="p-4 border-t border-white/5 flex justify-between items-center bg-black/20">
+                <div id="modalActions" class="flex gap-2"></div>
+                <button onclick="closeModal()" class="px-6 py-2 bg-white text-black font-black rounded-lg hover:bg-gray-200 transition text-[10px] uppercase">Закрити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================
+         MAIN APP SCRIPT
+    ========================= -->
+    <script>
+        // Ініціалізація даних
+        let myShows = [];
+        try {
+            myShows = JSON.parse(localStorage.getItem('streamTrack_shows')) || [];
+        } catch(e) {
+            console.error("Storage error", e);
+            myShows = [];
         }
-      }, 300);
 
-      input.addEventListener('input', run);
-
-      document.addEventListener('click', (e) => {
-        if (!input.contains(e.target) && !resultsDiv.contains(e.target)) {
-          resultsDiv.classList.add('hidden');
-        }
-      });
-    }
-
-    async function addShow(id, fromTrends = false) {
-      if (myShows.find(s => s.id === id)) return;
-
-      try {
-        const res = await fetch(`${TVMAZE_API}/shows/${id}?embed=episodes`);
-        const show = await res.json();
-
-        const eps = (show._embedded?.episodes || []).map(e => ({
-          id: e.id, name: e.name, season: e.season, number: e.number, airdate: e.airdate, watched: false
-        }));
-
-        const last = eps.filter(e => e.airdate).slice().sort((a,b)=>new Date(a.airdate)-new Date(b.airdate)).pop();
-
-        const newShow = {
-          id: show.id,
-          name: show.name,
-          image: show.image?.medium,
-          imdb: show.rating?.average,
-          imdbId: show.externals?.imdb,
-          officialStatus: show.status,
-          userStatus: '⏳ У планах',
-          dateAdded: Date.now(),
-          currentEpisodeCount: 0,
-          totalEpisodes: eps.length,
-          lastAirDate: last?.airdate || '',
-          episodes: eps,
-          hasNew: false
+        // ✅ FIX: bridge for Firebase sync (myShows must be controllable from module script)
+        window.myShows = myShows;
+        window.setMyShows = (v) => {
+            myShows = Array.isArray(v) ? v : [];
+            window.myShows = myShows;
         };
 
-        myShows.push(newShow);
-        save();
-        updateCounters();
+        let currentTab = 'watching';
+        const TVMAZE_API = 'https://api.tvmaze.com';
 
-        if (fromTrends) {
-          loadTrends(trendsMode);
-        } else {
-          renderGallery();
-          document.getElementById('searchResults').classList.add('hidden');
-          document.getElementById('searchInput').value = '';
+        // Запуск після завантаження DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = document.getElementById('app');
+            app.classList.add('ready');
+            updateCounters();
+            renderGallery();
+            setupSearch();
+        });
+
+        function updateCounters() {
+            const counts = {
+                watching: myShows.filter(s => s.userStatus === '👀 Дивлюсь').length,
+                planning: myShows.filter(s => s.userStatus === '⏳ У планах').length,
+                watched: myShows.filter(s => s.userStatus === '✅ Переглянуто').length,
+                all: myShows.length,
+                archive: myShows.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended').length
+            };
+
+            for (const key in counts) {
+                const el = document.getElementById(`count-${key}`);
+                if (el) el.innerText = `(${counts[key]})`;
+            }
         }
-      } catch (e) {
-        alert("Не вдалося додати серіал. Перевірте інтернет.");
-      }
-    }
 
-    function renderGallery() {
-      const gallery = document.getElementById('gallery');
-      const emptyState = document.getElementById('emptyState');
-      if (currentTab === 'trends') return;
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('button[id^="tab-"]').forEach(b => {
+                b.classList.remove('border-blue-500', 'text-blue-500');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if(activeTab) activeTab.classList.add('border-blue-500', 'text-blue-500');
 
-      let filtered = [...myShows];
+            if (tab === 'trends') loadTrends(); else renderGallery();
+        }
 
-      switch (currentTab) {
-        case 'watching': filtered = filtered.filter(s => s.userStatus === '👀 Дивлюсь'); break;
-        case 'planning': filtered = filtered.filter(s => s.userStatus === '⏳ У планах'); break;
-        case 'watched': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто'); break;
-        case 'archive': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended'); break;
-      }
+        async function loadTrends() {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '<div class="text-center py-10 text-xs font-bold text-gray-500 animate-pulse uppercase tracking-widest">Завантаження трендів...</div>';
 
-      const sortVal = document.getElementById('sortOrder').value;
-      if (sortVal === 'dateAdded') filtered.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
-      else if (sortVal === 'newest') filtered.sort((a, b) => new Date(b.lastAirDate || 0) - new Date(a.lastAirDate || 0));
-      else if (sortVal === 'alphabet') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      else if (sortVal === 'rating') filtered.sort((a, b) => (b.imdb || 0) - (a.imdb || 0));
+            try {
+                const res = await fetch(`${TVMAZE_API}/shows?page=0`);
+                if(!res.ok) throw new Error("API limit");
+                let allData = await res.json();
 
-      if (filtered.length === 0) {
-        gallery.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
-      }
-      emptyState.classList.add('hidden');
+                allData.sort((a, b) => (b.rating?.average || 0) - (a.rating?.average || 0));
 
-      gallery.innerHTML = filtered.map(show => {
-        const progress = Math.round((show.currentEpisodeCount / show.totalEpisodes) * 100) || 0;
+                const myIds = new Set(myShows.map(s => s.id));
+                const filteredTrends = allData.filter(show => !myIds.has(show.id)).slice(0, 100);
 
-        const lastEp = getLastAiredEpisode(show);
-        const lastEpText = lastEp ? `S${lastEp.season}E${lastEp.number}` : '—';
-        const lastEpDate = lastEp?.airdate ? fmtDate(lastEp.airdate) : '';
+                if (filteredTrends.length === 0) {
+                    gallery.innerHTML = '<div class="text-center py-10 text-gray-500 uppercase font-black text-[10px]">Все додано!</div>';
+                    return;
+                }
 
-        const badge = show.hasNew ? `<span class="status-pill bg-amber-500/15 text-amber-400 border-amber-500/20">NEW</span>` : '';
-
-        return `
-          <div class="card-row glass rounded-xl flex items-center p-3 gap-4 cursor-pointer" onclick="openModal(${show.id})">
-            <img src="${show.image || 'https://via.placeholder.com/210x295'}" class="w-12 h-16 md:w-10 md:h-14 object-cover rounded shrink-0 grayscale hover:grayscale-0 transition-all">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1 min-w-0">
-                <span class="font-bold text-[15px] md:text-sm text-white truncate">${esc(show.name)}</span>
-                ${badge}
-              </div>
-
-              <div class="flex items-center gap-3 text-[10px] md:text-[9px] text-gray-500 font-bold uppercase tracking-tighter flex-wrap">
-                <span class="text-blue-400">${esc(show.userStatus)}</span>
-                <span>IMDb ${show.imdb || 'N/A'}</span>
-                <span class="text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</span>
-                <span class="text-gray-500">Ост: ${lastEpText}${lastEpDate ? ` • ${lastEpDate}` : ''}</span>
-              </div>
-
-              <div class="w-full h-1 md:h-0.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${progress}%"></div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function openModal(id) {
-      const show = myShows.find(s => s.id === id);
-      if (!show) return;
-
-      // при відкритті — знімаємо NEW (користувач побачив)
-      if (show.hasNew) {
-        show.hasNew = false;
-        save();
-        updateCounters();
-      }
-
-      const modal = document.getElementById('modal');
-      const content = document.getElementById('modalContent');
-      const actions = document.getElementById('modalActions');
-
-      const seasons = {};
-      show.episodes.forEach((ep, idx) => {
-        if (!seasons[ep.season]) seasons[ep.season] = [];
-        seasons[ep.season].push({ ...ep, originalIdx: idx });
-      });
-
-      const seasonNums = Object.keys(seasons).map(Number).sort((a,b)=>a-b);
-
-      const seasonsHtml = seasonNums.map(seasonNum => {
-        const seasonEpisodes = seasons[seasonNum];
-        const allWatched = seasonEpisodes.every(e => e.watched);
-
-        return `
-          <div class="season-group mb-6">
-            <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
-              <h4 class="text-xs font-black uppercase text-blue-500 tracking-wider">Сезон ${seasonNum}</h4>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <span class="text-[10px] md:text-[8px] font-bold text-gray-500 uppercase">Весь сезон</span>
-                <input type="checkbox" ${allWatched ? 'checked' : ''} onchange="toggleSeason(${show.id}, ${seasonNum}, this.checked)" class="w-4 h-4 md:w-3 md:h-3 rounded bg-white/5 border-white/10 text-blue-600">
-              </label>
-            </div>
-
-            <div class="grid grid-cols-1 gap-1">
-              ${seasonEpisodes.map(ep => `
-                <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition ${ep.watched ? 'opacity-30' : ''}">
-                  <input type="checkbox" ${ep.watched ? 'checked' : ''} onchange="toggleEpisode(${show.id}, ${ep.originalIdx})" class="w-5 h-5 md:w-4 md:h-4 rounded border-white/10 bg-white/5 text-blue-600">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <div class="text-[10px] md:text-[8px] text-gray-500 font-bold">E${ep.number}</div>
-                      <div class="text-[10px] md:text-[8px] text-gray-600 font-bold">${fmtDate(ep.airdate)}</div>
+                gallery.innerHTML = filteredTrends.map(show => `
+                    <div class="card-row glass rounded-xl flex items-center p-3 gap-4">
+                        <img src="${show.image?.medium || 'https://via.placeholder.com/210x295?text=No+Img'}" class="w-10 h-14 object-cover rounded shadow-lg shrink-0 grayscale hover:grayscale-0 transition-all">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-white truncate">${show.name}</span>
+                                <span class="text-[9px] font-bold text-amber-500">IMDb ${show.rating?.average || 'N/A'}</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">${show.genres?.slice(0,2).join(' • ') || 'Серіал'}</div>
+                        </div>
+                        <button onclick="addShow(${show.id}, true)" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition shrink-0">Додати</button>
                     </div>
-                    <div class="text-[14px] md:text-xs font-bold text-white truncate">${esc(ep.name)}</div>
-                  </div>
+                `).join('');
+            } catch (err) {
+                gallery.innerHTML = '<div class="text-center py-10 text-red-500 font-bold uppercase text-[10px]">Помилка з\'єднання з сервером</div>';
+            }
+        }
+
+        function setupSearch() {
+            const input = document.getElementById('searchInput');
+            const resultsDiv = document.getElementById('searchResults');
+
+            input.addEventListener('input', async (e) => {
+                const query = e.target.value.trim();
+                if (query.length < 3) { resultsDiv.classList.add('hidden'); return; }
+
+                try {
+                    const res = await fetch(`${TVMAZE_API}/search/shows?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+
+                    if(data.length === 0) {
+                        resultsDiv.innerHTML = '<div class="p-4 text-[10px] text-gray-500 uppercase font-bold text-center">Нічого не знайдено</div>';
+                    } else {
+                        resultsDiv.innerHTML = data.map(item => `
+                            <div onclick="addShow(${item.show.id})" class="p-3 hover:bg-white/10 cursor-pointer flex gap-3 border-b border-white/5 last:border-0">
+                                <img src="${item.show.image?.medium || 'https://via.placeholder.com/210x295?text=?'}" class="w-8 h-10 object-cover rounded shadow">
+                                <div>
+                                    <div class="font-bold text-xs text-white">${item.show.name}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase">${item.show.status}</div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    resultsDiv.classList.remove('hidden');
+                } catch (err) { console.error(err); }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !resultsDiv.contains(e.target)) {
+                    resultsDiv.classList.add('hidden');
+                }
+            });
+        }
+
+        async function addShow(id, fromTrends = false) {
+            if (myShows.find(s => s.id === id)) return;
+
+            try {
+                const res = await fetch(`${TVMAZE_API}/shows/${id}?embed=episodes`);
+                const show = await res.json();
+
+                const newShow = {
+                    id: show.id,
+                    name: show.name,
+                    image: show.image?.medium,
+                    imdb: show.rating?.average,
+                    imdbId: show.externals?.imdb,
+                    officialStatus: show.status,
+                    userStatus: '⏳ У планах',
+                    dateAdded: Date.now(),
+                    currentEpisodeCount: 0,
+                    totalEpisodes: show._embedded?.episodes?.length || 0,
+                    lastAirDate: show._embedded?.episodes?.[show._embedded.episodes.length-1]?.airdate || '',
+                    episodes: (show._embedded?.episodes || []).map(e => ({
+                        id: e.id,
+                        name: e.name,
+                        season: e.season,
+                        number: e.number,
+                        airdate: e.airdate,
+                        watched: false
+                    }))
+                };
+
+                myShows.push(newShow);
+                save();
+                updateCounters();
+
+                if (fromTrends) {
+                    loadTrends();
+                } else {
+                    renderGallery();
+                    document.getElementById('searchResults').classList.add('hidden');
+                    document.getElementById('searchInput').value = '';
+                }
+            } catch(e) {
+                alert("Не вдалося додати серіал. Перевірте інтернет.");
+            }
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const emptyState = document.getElementById('emptyState');
+            if(currentTab === 'trends') return;
+
+            let filtered = [...myShows];
+
+            switch(currentTab) {
+                case 'watching': filtered = filtered.filter(s => s.userStatus === '👀 Дивлюсь'); break;
+                case 'planning': filtered = filtered.filter(s => s.userStatus === '⏳ У планах'); break;
+                case 'watched': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто'); break;
+                case 'archive': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended'); break;
+            }
+
+            const sortVal = document.getElementById('sortOrder').value;
+            if (sortVal === 'dateAdded') filtered.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+            else if (sortVal === 'newest') filtered.sort((a, b) => new Date(b.lastAirDate || 0) - new Date(a.lastAirDate || 0));
+            else if (sortVal === 'alphabet') filtered.sort((a, b) => a.name.localeCompare(b.name));
+            else if (sortVal === 'rating') filtered.sort((a, b) => (b.imdb || 0) - (a.imdb || 0));
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            gallery.innerHTML = filtered.map(show => {
+                const progress = Math.round((show.currentEpisodeCount / show.totalEpisodes) * 100) || 0;
+                return `
+                <div class="card-row glass rounded-xl flex items-center p-3 gap-4 cursor-pointer" onclick="openModal(${show.id})">
+                    <img src="${show.image || 'https://via.placeholder.com/210x295'}" class="w-10 h-14 object-cover rounded shrink-0 grayscale hover:grayscale-0 transition-all">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-sm text-white truncate">${show.name}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-[9px] text-gray-500 font-bold uppercase tracking-tighter">
+                            <span class="text-blue-400">${show.userStatus}</span>
+                            <span>IMDb ${show.imdb || 'N/A'}</span>
+                            <span class="text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</span>
+                        </div>
+                        <div class="w-full h-0.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
                 </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
+            `}).join('');
+        }
 
-      content.innerHTML = `
-        <div class="mb-5 md:mb-6 text-center md:text-left">
-          <h2 class="text-2xl md:text-3xl font-black text-white mb-2">${esc(show.name)}</h2>
-          <div class="flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-[11px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-            <span>IMDb ${show.imdb || 'N/A'}</span>
-            <span>${show.totalEpisodes} СЕРІЙ</span>
-            <span>СТАТУС: ${esc(show.officialStatus || '')}</span>
-          </div>
-        </div>
+        function openModal(id) {
+            const show = myShows.find(s => s.id === id);
+            if (!show) return;
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
-          <div class="glass p-4 rounded-xl">
-            <label class="text-[10px] md:text-[9px] font-black text-gray-500 uppercase mb-2 block">Прогрес</label>
-            <div class="text-2xl font-black text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</div>
+            const modal = document.getElementById('modal');
+            const content = document.getElementById('modalContent');
+            const actions = document.getElementById('modalActions');
 
-            <div class="flex gap-2 mt-3">
-              <button onclick="toggleAllEpisodes(${show.id}, true)" class="px-3 py-2 rounded-lg glass text-[10px] font-black uppercase hover:bg-white/10">Всі ✓</button>
-              <button onclick="toggleAllEpisodes(${show.id}, false)" class="px-3 py-2 rounded-lg glass text-[10px] font-black uppercase hover:bg-white/10">Очистити</button>
-            </div>
-          </div>
+            const seasons = {};
+            show.episodes.forEach((ep, idx) => {
+                if (!seasons[ep.season]) seasons[ep.season] = [];
+                seasons[ep.season].push({ ...ep, originalIdx: idx });
+            });
 
-          <div class="glass p-4 rounded-xl">
-            <label class="text-[10px] md:text-[9px] font-black text-gray-500 uppercase mb-2 block">Статус користувача</label>
-            <select onchange="updateShowStatus(${show.id}, this.value)" class="w-full bg-transparent text-[13px] md:text-xs font-bold text-white outline-none cursor-pointer">
-              <option value="👀 Дивлюсь" ${show.userStatus === '👀 Дивлюсь' ? 'selected' : ''}>👀 Дивлюсь</option>
-              <option value="✅ Переглянуто" ${show.userStatus === '✅ Переглянуто' ? 'selected' : ''}>✅ Переглянуто</option>
-              <option value="⏳ У планах" ${show.userStatus === '⏳ У планах' ? 'selected' : ''}>⏳ У планах</option>
-              <option value="🛑 Покинуто" ${show.userStatus === '🛑 Покинуто' ? 'selected' : ''}>🛑 Покинуто</option>
-            </select>
-          </div>
-        </div>
+            const seasonsHtml = Object.keys(seasons).map(seasonNum => {
+                const seasonEpisodes = seasons[seasonNum];
+                const allWatched = seasonEpisodes.every(e => e.watched);
 
-        <div class="glass rounded-xl p-4 border border-white/5">
-          <div class="max-h-[320px] md:max-h-[300px] overflow-y-auto no-scrollbar">${seasonsHtml}</div>
-        </div>
-      `;
+                return `
+                    <div class="season-group mb-6">
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                            <h4 class="text-xs font-black uppercase text-blue-500 tracking-wider">Сезон ${seasonNum}</h4>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <span class="text-[8px] font-bold text-gray-500 uppercase">Весь сезон</span>
+                                <input type="checkbox" ${allWatched ? 'checked' : ''} onchange="toggleSeason(${show.id}, ${seasonNum}, this.checked)" class="w-3 h-3 rounded bg-white/5 border-white/10 text-blue-600">
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1">
+                            ${seasonEpisodes.map(ep => `
+                                <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition ${ep.watched ? 'opacity-30' : ''}">
+                                    <input type="checkbox" ${ep.watched ? 'checked' : ''} onchange="toggleEpisode(${show.id}, ${ep.originalIdx})" class="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-600">
+                                    <div class="flex-1">
+                                        <div class="text-[8px] text-gray-500 font-bold">E${ep.number}</div>
+                                        <div class="text-xs font-bold text-white">${ep.name}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
-      actions.innerHTML = `<button onclick="removeShow(${show.id})" class="px-4 py-2 text-red-500 text-[10px] md:text-[9px] font-black uppercase hover:bg-red-500/10 rounded-lg transition">Видалити</button>`;
+            content.innerHTML = `
+                <div class="mb-6 text-center md:text-left">
+                    <h2 class="text-3xl font-black text-white mb-2">${show.name}</h2>
+                    <div class="flex flex-wrap justify-center md:justify-start gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                        <span>IMDb ${show.imdb || 'N/A'}</span>
+                        <span>${show.totalEpisodes} СЕРІЙ</span>
+                        <span>СТАТУС: ${show.officialStatus}</span>
+                    </div>
+                </div>
 
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      setTimeout(() => document.getElementById('modalContainer').classList.replace('scale-95', 'scale-100'), 10);
-    }
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <div class="glass p-4 rounded-xl">
+                        <label class="text-[9px] font-black text-gray-500 uppercase mb-2 block">Прогрес</label>
+                        <div class="text-2xl font-black text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</div>
+                    </div>
+                    <div class="glass p-4 rounded-xl">
+                        <label class="text-[9px] font-black text-gray-500 uppercase mb-2 block">Статус користувача</label>
+                        <select onchange="updateShowStatus(${show.id}, this.value)" class="w-full bg-transparent text-xs font-bold text-white outline-none cursor-pointer">
+                            <option value="👀 Дивлюсь" ${show.userStatus === '👀 Дивлюсь' ? 'selected' : ''}>👀 Дивлюсь</option>
+                            <option value="✅ Переглянуто" ${show.userStatus === '✅ Переглянуто' ? 'selected' : ''}>✅ Переглянуто</option>
+                            <option value="⏳ У планах" ${show.userStatus === '⏳ У планах' ? 'selected' : ''}>⏳ У планах</option>
+                            <option value="🛑 Покинуто" ${show.userStatus === '🛑 Покинуто' ? 'selected' : ''}>🛑 Покинуто</option>
+                        </select>
+                    </div>
+                </div>
 
-    function closeModal() {
-      document.getElementById('modalContainer').classList.replace('scale-100', 'scale-95');
-      setTimeout(() => {
-        document.getElementById('modal').classList.replace('flex', 'hidden');
-        renderGallery();
-      }, 150);
-    }
+                <div class="glass rounded-xl p-4 border border-white/5">
+                    <div class="max-h-[300px] overflow-y-auto no-scrollbar">${seasonsHtml}</div>
+                </div>
+            `;
 
-    function toggleEpisode(showId, epIdx) {
-      const show = myShows.find(s => s.id === showId);
-      if (!show) return;
-      show.episodes[epIdx].watched = !show.episodes[epIdx].watched;
-      show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
-      save(); openModal(showId);
-    }
+            actions.innerHTML = `<button onclick="removeShow(${show.id})" class="px-4 py-2 text-red-500 text-[9px] font-black uppercase hover:bg-red-500/10 rounded-lg transition">Видалити</button>`;
 
-    function toggleSeason(showId, seasonNum, watched) {
-      const show = myShows.find(s => s.id === showId);
-      if (!show) return;
-      show.episodes.forEach(ep => { if (ep.season == seasonNum) ep.watched = watched; });
-      show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
-      save(); openModal(showId);
-    }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('modalContainer').classList.replace('scale-95', 'scale-100'), 10);
+        }
 
-    function toggleAllEpisodes(showId, watched) {
-      const show = myShows.find(s => s.id === showId);
-      if (!show) return;
-      show.episodes.forEach(ep => ep.watched = watched);
-      show.currentEpisodeCount = watched ? show.episodes.length : 0;
-      save(); openModal(showId);
-    }
+        function closeModal() {
+            document.getElementById('modalContainer').classList.replace('scale-100', 'scale-95');
+            setTimeout(() => {
+                document.getElementById('modal').classList.replace('flex', 'hidden');
+                renderGallery();
+            }, 150);
+        }
 
-    function updateShowStatus(id, value) {
-      const show = myShows.find(s => s.id === id);
-      if (!show) return;
-      show.userStatus = value;
-      save();
-      updateCounters();
-    }
+        function toggleEpisode(showId, epIdx) {
+            const show = myShows.find(s => s.id === showId);
+            show.episodes[epIdx].watched = !show.episodes[epIdx].watched;
+            show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
+            save(); openModal(showId);
+        }
 
-    function removeShow(id) {
-      if (confirm('Видалити цей серіал з вашої бази?')) {
-        myShows = myShows.filter(s => s.id !== id);
-        save(); updateCounters(); closeModal();
-      }
-    }
+        function toggleSeason(showId, seasonNum, watched) {
+            const show = myShows.find(s => s.id === showId);
+            show.episodes.forEach(ep => { if (ep.season == seasonNum) ep.watched = watched; });
+            show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
+            save(); openModal(showId);
+        }
 
-    function save() {
-      localStorage.setItem('streamTrack_shows', JSON.stringify(myShows));
-      window.myShows = myShows;
-    }
-
-    function exportData() {
-      const date = new Date().toISOString().slice(0,10);
-      const blob = new Blob([JSON.stringify(myShows, null, 2)], {type: "application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `raf_serials_backup_${date}.json`; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result);
-          myShows = Array.isArray(data) ? data : [];
-          window.myShows = myShows;
-          save(); updateCounters(); renderGallery();
-          alert("Дані успішно імпортовано!");
-        } catch(err) { alert("Помилка формату файлу"); }
-      };
-      reader.readAsText(file);
-    }
-
-    /* =========================
-       NOTIFICATIONS
-    ========================= */
-
-    async function enableNotifications() {
-      if (!("Notification" in window)) {
-        alert("Нотифікації не підтримуються цим браузером.");
-        return;
-      }
-      const perm = await Notification.requestPermission();
-      if (perm === "granted") alert("Нотифікації увімкнено.");
-      else alert("Нотифікації вимкнені у браузері.");
-    }
-
-    function notify(title, body) {
-      if (!("Notification" in window)) return;
-      if (Notification.permission !== "granted") return;
-      try { new Notification(title, { body }); } catch {}
-    }
-
-    async function checkForNewEpisodes() {
-      const watching = myShows.filter(s => s.userStatus === '👀 Дивлюсь');
-      if (!watching.length) return;
-
-      const state = getNotifyState();
-
-      for (const show of watching) {
-        try {
-          const res = await fetch(`${TVMAZE_API}/shows/${show.id}?embed=episodes`);
-          if (!res.ok) continue;
-          const fresh = await res.json();
-
-          const freshEps = (fresh._embedded?.episodes || []).map(e => ({
-            id: e.id, name: e.name, season: e.season, number: e.number, airdate: e.airdate, watched: false
-          }));
-
-          const freshCount = freshEps.length;
-          const oldCount = show.totalEpisodes || 0;
-
-          // нові серії
-          if (freshCount > oldCount) {
-            const existingIds = new Set((show.episodes || []).map(e => e.id));
-            const newOnes = freshEps.filter(e => !existingIds.has(e.id));
-
-            // додаємо тільки нові
-            show.episodes = [...(show.episodes || []), ...newOnes];
-            show.totalEpisodes = freshCount;
-
-            const last = getLastAiredEpisode({ episodes: freshEps });
-            show.lastAirDate = last?.airdate || show.lastAirDate;
-
-            // NEW бейдж
-            show.hasNew = true;
-
+        function updateShowStatus(id, value) {
+            const show = myShows.find(s => s.id === id);
+            show.userStatus = value;
             save();
             updateCounters();
-            if (currentTab !== 'trends') renderGallery();
+        }
 
-            // анти-спам: нотиф тільки якщо останній епізод новий відносно попереднього
-            const lastId = last?.id ? String(last.id) : '';
-            const key = String(show.id);
-            if (lastId && state[key] !== lastId) {
-              state[key] = lastId;
-              setNotifyState(state);
-              notify("Нові серії!", `${show.name}: +${freshCount - oldCount} сер(ія/ії)`);
+        function removeShow(id) {
+            if (confirm('Видалити цей серіал з вашої бази?')) {
+                myShows = myShows.filter(s => s.id !== id);
+                save(); updateCounters(); closeModal();
             }
-          }
-        } catch {}
-      }
-    }
-  </script>
+        }
 
-  <!-- =========================
-       FIREBASE SYNC MODULE
-  ========================= -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+        // ✅ FIX: keep window.myShows updated
+        function save() {
+            localStorage.setItem('streamTrack_shows', JSON.stringify(myShows));
+            window.myShows = myShows;
+        }
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBI72wYVkWPnU6IShQA0GzNv2qxkSwPjxc",
-      authDomain: "raf-serials.firebaseapp.com",
-      projectId: "raf-serials",
-      storageBucket: "raf-serials.firebasestorage.app",
-      messagingSenderId: "908671765741",
-      appId: "1:908671765741:web:bc0573e464c69ec90d90e4",
-      measurementId: "G-4RX35LRNFF"
-    };
+        function exportData() {
+            const date = new Date().toISOString().slice(0,10);
+            const blob = new Blob([JSON.stringify(myShows, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `streamtrack_backup_${date}.json`; a.click();
+            URL.revokeObjectURL(url);
+        }
 
-    const fbApp = initializeApp(firebaseConfig);
-    const auth = getAuth(fbApp);
-    const db = getFirestore(fbApp);
-    const provider = new GoogleAuthProvider();
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    myShows = Array.isArray(data) ? data : [];
+                    window.myShows = myShows;
+                    save(); updateCounters(); renderGallery();
+                    alert("Дані успішно імпортовано!");
+                } catch(err) { alert("Помилка формату файлу"); }
+            };
+            reader.readAsText(file);
+        }
+    </script>
 
-    let user = null;
-    let unsub = null;
+    <!-- =========================
+         FIREBASE SYNC MODULE
+         (must be AFTER main script)
+    ========================= -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+      import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+      import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    window.login = () => signInWithPopup(auth, provider);
-    window.logout = () => signOut(auth);
+      const firebaseConfig = {
+        apiKey: "AIzaSyBI72wYVkWPnU6IShQA0GzNv2qxkSwPjxc",
+        authDomain: "raf-serials.firebaseapp.com",
+        projectId: "raf-serials",
+        storageBucket: "raf-serials.firebasestorage.app",
+        messagingSenderId: "908671765741",
+        appId: "1:908671765741:web:bc0573e464c69ec90d90e4",
+        measurementId: "G-4RX35LRNFF"
+      };
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const headerRight = document.querySelector("header .flex.items-center.gap-2");
-      if (headerRight) {
-        const wrap = document.createElement("div");
-        wrap.className = "flex items-center gap-2 mr-2";
-        wrap.innerHTML = `
-          <button onclick="login()" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase">Увійти</button>
-          <button onclick="logout()" id="logoutBtn" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase hidden">Вийти</button>
-          <span id="userEmail" class="text-[10px] text-gray-500 font-bold hidden"></span>
-        `;
-        headerRight.parentNode.insertBefore(wrap, headerRight);
-      }
-    });
+      const fbApp = initializeApp(firebaseConfig);
+      const auth = getAuth(fbApp);
+      const db = getFirestore(fbApp);
+      const provider = new GoogleAuthProvider();
 
-    function startSync() {
-      const ref = collection(db, "users", user.uid, "shows");
-      unsub = onSnapshot(ref, (snap) => {
-        const cloudShows = snap.docs.map(d => d.data());
+      let user = null;
+      let unsub = null;
 
-        // головне: записуємо в локальний state апки
-        window.setMyShows?.(cloudShows);
+      window.login = () => signInWithPopup(auth, provider);
+      window.logout = () => signOut(auth);
 
-        localStorage.setItem("streamTrack_shows", JSON.stringify(cloudShows));
-
-        window.updateCounters?.();
-        window.renderGallery?.();
+      // Inject buttons into header
+      document.addEventListener("DOMContentLoaded", () => {
+        const headerRight = document.querySelector("header .flex.items-center.gap-2");
+        if (headerRight) {
+          const wrap = document.createElement('div');
+          wrap.className = "flex items-center gap-2 mr-2";
+          wrap.innerHTML = `
+            <button onclick="login()" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase">Увійти</button>
+            <button onclick="logout()" id="logoutBtn" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase hidden">Вийти</button>
+            <span id="userEmail" class="text-[10px] text-gray-500 font-bold hidden"></span>
+          `;
+          headerRight.parentNode.insertBefore(wrap, headerRight);
+        }
       });
-    }
 
-    async function upsertShow(show) {
-      if (!user) return;
-      await setDoc(
-        doc(db, "users", user.uid, "shows", String(show.id)),
-        { ...show, updatedAt: serverTimestamp() }
-      );
-    }
+      function startSync() {
+        const ref = collection(db, "users", user.uid, "shows");
+        unsub = onSnapshot(ref, (snap) => {
+          const cloud = snap.docs.map(d => d.data());
 
-    async function removeShowCloud(id) {
-      if (!user) return;
-      await deleteDoc(doc(db, "users", user.uid, "shows", String(id)));
-    }
+          // ✅ FIX: update REAL app state (myShows) via setMyShows bridge
+          window.setMyShows?.(cloud);
+          localStorage.setItem("streamTrack_shows", JSON.stringify(cloud));
 
-    // Патчимо дії (синк після змін)
-    ["toggleEpisode","toggleSeason","toggleAllEpisodes","updateShowStatus","addShow"].forEach(fnName => {
-      const orig = window[fnName];
-      if (typeof orig === "function") {
-        window[fnName] = async function (...args) {
-          const r = await orig.apply(this, args);
-
-          try {
-            const id = args[0];
-            const show = (window.myShows || []).find(s => s.id === id);
-            if (show) await upsertShow(show);
-          } catch {}
-
-          return r;
-        };
-      }
-    });
-
-    const originalRemoveShow = window.removeShow;
-    window.removeShow = async function(id) {
-      await originalRemoveShow?.(id);
-      await removeShowCloud(id);
-    };
-
-    // Auth state
-    onAuthStateChanged(auth, (u) => {
-      user = u || null;
-
-      const logoutBtn = document.getElementById("logoutBtn");
-      const userEmail = document.getElementById("userEmail");
-      if (logoutBtn) logoutBtn.classList.toggle("hidden", !user);
-      if (userEmail) {
-        userEmail.classList.toggle("hidden", !user);
-        userEmail.textContent = user ? user.email : "";
+          window.updateCounters?.();
+          window.renderGallery?.();
+        });
       }
 
-      if (unsub) { unsub(); unsub = null; }
-      if (user) startSync();
-    });
-  </script>
+      async function upsertShow(show) {
+        if (!user) return;
+        await setDoc(
+          doc(db, "users", user.uid, "shows", String(show.id)),
+          { ...show, updatedAt: serverTimestamp() }
+        );
+      }
+
+      async function removeShowCloud(id) {
+        if (!user) return;
+        await deleteDoc(doc(db, "users", user.uid, "shows", String(id)));
+      }
+
+      // Patch actions -> sync changed show
+      ["toggleEpisode","toggleSeason","updateShowStatus","addShow"].forEach(fnName => {
+        const orig = window[fnName];
+        if (typeof orig === "function") {
+          window[fnName] = async function (...args) {
+            const r = await orig.apply(this, args);
+
+            try {
+              const id = args[0];
+              const show = (window.myShows || []).find(s => s.id === id);
+              if (show) await upsertShow(show);
+            } catch {}
+
+            return r;
+          };
+        }
+      });
+
+      const originalRemoveShow = window.removeShow;
+      window.removeShow = async function(id) {
+        await originalRemoveShow?.(id);
+        await removeShowCloud(id);
+      };
+
+      onAuthStateChanged(auth, (u) => {
+        user = u || null;
+
+        const logoutBtn = document.getElementById("logoutBtn");
+        const userEmail = document.getElementById("userEmail");
+        if (logoutBtn) logoutBtn.classList.toggle("hidden", !user);
+        if (userEmail) {
+          userEmail.classList.toggle("hidden", !user);
+          userEmail.textContent = user ? user.email : "";
+        }
+
+        if (unsub) { unsub(); unsub = null; }
+        if (user) startSync();
+      });
+    </script>
 </body>
 </html>
