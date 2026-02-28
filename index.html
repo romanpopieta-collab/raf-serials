@@ -1,65 +1,689 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamTrack - Твій серіальний всесвіт</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --apple-bg: #000000;
+            --apple-card: #1c1c1e;
+            --apple-accent: #0071e3;
+        }
+        body {
+            background-color: var(--apple-bg);
+            color: #f5f5f7;
+            font-family: 'Inter', -apple-system, sans-serif;
+            letter-spacing: -0.01em;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .glass {
+            background: rgba(28, 28, 30, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-row {
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .card-row:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .status-pill {
+            font-size: 8px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+        .tab-counter {
+            font-size: 9px;
+            margin-left: 4px;
+            opacity: 0.6;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
-<title>StreamTrack</title>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-<script src="https://cdn.tailwindcss.com"></script>
-
-<style>
-body{
-background:#000;
-color:white;
-font-family:system-ui;
-}
-
-.glass{
-background:#1c1c1e;
-border:1px solid rgba(255,255,255,.08);
-}
-
-.card{
-cursor:pointer;
-padding:12px;
-border-radius:12px;
-display:flex;
-gap:12px;
-align-items:center;
-}
-
-.card:hover{
-background:#2a2a2d;
-}
-</style>
+        .season-group:not(:last-child) {
+            margin-bottom: 1.5rem;
+        }
+        #app { opacity: 0; transition: opacity 0.3s ease; }
+        #app.ready { opacity: 1; }
+    </style>
 </head>
+<body class="min-h-screen">
+    <div id="app" class="max-w-5xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">StreamTrack</h1>
+                <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Цифровий Архів Медіа</p>
+            </div>
 
-<body>
+            <div class="flex items-center gap-2" id="headerActions">
+                <!-- AUTH (Firebase) -->
+                <button id="btnLogin" onclick="login()" title="Увійти" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" stroke-width="3"></path></svg>
+                    Увійти
+                </button>
 
-<div id="app" class="max-w-4xl mx-auto p-6">
+                <button id="btnLogout" onclick="logout()" title="Вийти" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2 hidden">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l-5-5 5-5M21 12H9" stroke-width="3"></path></svg>
+                    Вийти
+                </button>
 
-<header class="flex justify-between mb-6">
+                <span id="userEmail" class="hidden text-[10px] font-bold uppercase tracking-widest text-gray-500 max-w-[160px] truncate"></span>
 
-<h1 class="text-2xl font-black">
-StreamTrack
-</h1>
+                <!-- Backup/Import -->
+                <button onclick="exportData()" title="Бекап" class="glass px-3 py-2 rounded-lg text-[10px] font-black hover:bg-white/10 transition uppercase flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="3"></path></svg>
+                    Бекап
+                </button>
+                <label title="Імпорт" class="glass px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer hover:bg-white/10 transition uppercase flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-width="3"></path></svg>
+                    Імпорт
+                    <input type="file" class="hidden" onchange="importData(event)">
+                </label>
+            </div>
+        </header>
 
-<div class="flex gap-2 items-center" id="authBox"></div>
+        <!-- Search -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-8">
+            <div class="lg:col-span-8 relative">
+                <input type="text" id="searchInput" autocomplete="off" placeholder="Швидкий пошук нових серіалів..."
+                    class="w-full h-10 bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 focus:ring-1 focus:ring-blue-500 focus:outline-none text-sm transition-all">
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2.5"></path></svg>
+                </div>
+                <div id="searchResults" class="absolute top-full left-0 right-0 glass mt-1 rounded-lg shadow-2xl z-[100] hidden overflow-hidden border border-white/20"></div>
+            </div>
 
-</header>
+            <div class="lg:col-span-4">
+                <select id="sortOrder" onchange="renderGallery()" class="w-full h-10 glass rounded-lg px-3 appearance-none cursor-pointer text-xs font-bold uppercase tracking-widest outline-none">
+                    <option value="dateAdded">📅 Дата додавання</option>
+                    <option value="newest">📺 Свіжі серії</option>
+                    <option value="alphabet">🔤 Алфавіт</option>
+                    <option value="rating">⭐️ Рейтинг IMDb</option>
+                </select>
+            </div>
+        </div>
 
-<input id="searchInput"
-placeholder="Пошук серіалу..."
-class="w-full p-3 mb-6 bg-black border border-white/20 rounded"/>
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 mb-6 no-scrollbar overflow-x-auto">
+            <button onclick="setTab('watching')" id="tab-watching" class="pb-2 border-b-2 border-blue-500 text-blue-500 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                Дивлюся <span class="tab-counter" id="count-watching">(0)</span>
+            </button>
+            <button onclick="setTab('planning')" id="tab-planning" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                У планах <span class="tab-counter" id="count-planning">(0)</span>
+            </button>
+            <button onclick="setTab('watched')" id="tab-watched" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Переглянуто <span class="tab-counter" id="count-watched">(0)</span>
+            </button>
+            <button onclick="setTab('all')" id="tab-all" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Усі <span class="tab-counter" id="count-all">(0)</span>
+            </button>
+            <button onclick="setTab('archive')" id="tab-archive" class="pb-2 border-b-2 border-transparent text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white whitespace-nowrap">
+                Архів <span class="tab-counter" id="count-archive">(0)</span>
+            </button>
+            <button onclick="setTab('trends')" id="tab-trends" class="pb-2 border-b-2 border-transparent text-amber-500/70 text-[10px] font-black uppercase tracking-widest hover:text-amber-500 whitespace-nowrap">
+                🔥 Тренди
+            </button>
+        </div>
 
-<div id="gallery" class="flex flex-col gap-2"></div>
+        <!-- Gallery / List -->
+        <div id="gallery" class="flex flex-col gap-2"></div>
 
-</div>
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-20 text-gray-600">
+            <p class="text-sm font-bold uppercase tracking-widest">Тут поки порожньо</p>
+        </div>
+    </div>
 
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/95 z-[200] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="glass w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col scale-95 transition-transform duration-200" id="modalContainer">
+            <div class="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1" id="modalContent"></div>
+            <div class="p-4 border-t border-white/5 flex justify-between items-center bg-black/20">
+                <div id="modalActions" class="flex gap-2"></div>
+                <button onclick="closeModal()" class="px-6 py-2 bg-white text-black font-black rounded-lg hover:bg-gray-200 transition text-[10px] uppercase">Закрити</button>
+            </div>
+        </div>
+    </div>
 
-<!-- ===============================
-        FIREBASE + APP LOGIC
-================================ -->
+    <!-- Firebase compat (працює без module, ідеально під твій inline onclick) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-<script
+    <script>
+        /* ============================================================
+           FIREBASE: AUTH + CLOUD SYNC (додано)
+        ============================================================ */
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyBI72wYVkWPnU6IShQA0GzNv2qxkSwPjxc",
+          authDomain: "raf-serials.firebaseapp.com",
+          projectId: "raf-serials",
+          storageBucket: "raf-serials.firebasestorage.app",
+          messagingSenderId: "908671765741",
+          appId: "1:908671765741:web:bc0573e464c69ec90d90e4",
+          measurementId: "G-4RX35LRNFF"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        let currentUser = null;
+        let unsubscribeCloud = null;
+
+        function setAuthUI(isLoggedIn) {
+            const btnLogin = document.getElementById('btnLogin');
+            const btnLogout = document.getElementById('btnLogout');
+            const email = document.getElementById('userEmail');
+
+            if (!btnLogin || !btnLogout || !email) return;
+
+            btnLogin.classList.toggle('hidden', isLoggedIn);
+            btnLogout.classList.toggle('hidden', !isLoggedIn);
+            email.classList.toggle('hidden', !isLoggedIn);
+
+            if (isLoggedIn) {
+                email.textContent = currentUser?.email || '';
+            } else {
+                email.textContent = '';
+            }
+        }
+
+        // глобальні (бо inline onclick)
+        async function login() {
+            await auth.signInWithPopup(provider);
+        }
+
+        async function logout() {
+            await auth.signOut();
+        }
+
+        function cloudCollectionRef() {
+            if (!currentUser) return null;
+            return db.collection('users').doc(currentUser.uid).collection('shows');
+        }
+
+        async function cloudUpsertShow(show) {
+            const ref = cloudCollectionRef();
+            if (!ref) return;
+            await ref.doc(String(show.id)).set({
+                ...show,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        async function cloudDeleteShow(showId) {
+            const ref = cloudCollectionRef();
+            if (!ref) return;
+            await ref.doc(String(showId)).delete();
+        }
+
+        function startCloudSync() {
+            const ref = cloudCollectionRef();
+            if (!ref) return;
+
+            if (unsubscribeCloud) unsubscribeCloud();
+
+            unsubscribeCloud = ref.onSnapshot((snap) => {
+                // важливо: це робить хмару "джерелом істини" коли залогінений
+                myShows = snap.docs.map(d => d.data());
+
+                // локальний кеш
+                localStorage.setItem('streamTrack_shows', JSON.stringify(myShows));
+
+                updateCounters();
+                // якщо відкритий модал — не ліземо всередину, просто оновлюємо список
+                renderGallery();
+            }, (err) => {
+                console.error("Cloud sync error:", err);
+            });
+        }
+
+        function stopCloudSync() {
+            if (unsubscribeCloud) {
+                unsubscribeCloud();
+                unsubscribeCloud = null;
+            }
+        }
+
+        auth.onAuthStateChanged((user) => {
+            currentUser = user || null;
+            setAuthUI(!!currentUser);
+
+            stopCloudSync();
+            if (currentUser) {
+                startCloudSync();
+            } else {
+                // без логіну — працюємо з localStorage як раніше
+                try {
+                    myShows = JSON.parse(localStorage.getItem('streamTrack_shows')) || [];
+                } catch(e) {
+                    myShows = [];
+                }
+                updateCounters();
+                renderGallery();
+            }
+        });
+
+        /* ============================================================
+           ТВОЯ ОРИГІНАЛЬНА ЛОГІКА (мінімально змінена під cloud sync)
+        ============================================================ */
+
+        // Ініціалізація даних
+        let myShows = [];
+        try {
+            myShows = JSON.parse(localStorage.getItem('streamTrack_shows')) || [];
+        } catch(e) {
+            console.error("Storage error", e);
+            myShows = [];
+        }
+
+        let currentTab = 'watching';
+        const TVMAZE_API = 'https://api.tvmaze.com';
+
+        // Запуск після завантаження DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = document.getElementById('app');
+            app.classList.add('ready');
+            updateCounters();
+            renderGallery();
+            setupSearch();
+        });
+
+        function updateCounters() {
+            const counts = {
+                watching: myShows.filter(s => s.userStatus === '👀 Дивлюсь').length,
+                planning: myShows.filter(s => s.userStatus === '⏳ У планах').length,
+                watched: myShows.filter(s => s.userStatus === '✅ Переглянуто').length,
+                all: myShows.length,
+                archive: myShows.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended').length
+            };
+
+            for (const key in counts) {
+                const el = document.getElementById(`count-${key}`);
+                if (el) el.innerText = `(${counts[key]})`;
+            }
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('button[id^="tab-"]').forEach(b => {
+                b.classList.remove('border-blue-500', 'text-blue-500');
+                b.classList.add('border-transparent', 'text-gray-500');
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if(activeTab) {
+                activeTab.classList.remove('border-transparent', 'text-gray-500');
+                activeTab.classList.add('border-blue-500', 'text-blue-500');
+            }
+
+            if (tab === 'trends') loadTrends(); else renderGallery();
+        }
+
+        async function loadTrends() {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '<div class="text-center py-10 text-xs font-bold text-gray-500 animate-pulse uppercase tracking-widest">Завантаження трендів...</div>';
+
+            try {
+                const res = await fetch(`${TVMAZE_API}/shows?page=0`);
+                if(!res.ok) throw new Error("API limit");
+                let allData = await res.json();
+
+                allData.sort((a, b) => (b.rating?.average || 0) - (a.rating?.average || 0));
+
+                const myIds = new Set(myShows.map(s => s.id));
+                const filteredTrends = allData.filter(show => !myIds.has(show.id)).slice(0, 100);
+
+                if (filteredTrends.length === 0) {
+                    gallery.innerHTML = '<div class="text-center py-10 text-gray-500 uppercase font-black text-[10px]">Все додано!</div>';
+                    return;
+                }
+
+                gallery.innerHTML = filteredTrends.map(show => `
+                    <div class="card-row glass rounded-xl flex items-center p-3 gap-4">
+                        <img src="${show.image?.medium || 'https://via.placeholder.com/210x295?text=No+Img'}" class="w-10 h-14 object-cover rounded shadow-lg shrink-0 grayscale hover:grayscale-0 transition-all">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-white truncate">${show.name}</span>
+                                <span class="text-[9px] font-bold text-amber-500">IMDb ${show.rating?.average || 'N/A'}</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">${show.genres?.slice(0,2).join(' • ') || 'Серіал'}</div>
+                        </div>
+                        <button onclick="addShow(${show.id}, true)" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition shrink-0">Додати</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                gallery.innerHTML = '<div class="text-center py-10 text-red-500 font-bold uppercase text-[10px]">Помилка з\'єднання з сервером</div>';
+            }
+        }
+
+        function setupSearch() {
+            const input = document.getElementById('searchInput');
+            const resultsDiv = document.getElementById('searchResults');
+
+            // простий debounce щоб не вбивати API
+            let t = null;
+
+            input.addEventListener('input', async (e) => {
+                clearTimeout(t);
+                t = setTimeout(async () => {
+                    const query = e.target.value.trim();
+                    if (query.length < 3) { resultsDiv.classList.add('hidden'); return; }
+
+                    try {
+                        const res = await fetch(`${TVMAZE_API}/search/shows?q=${encodeURIComponent(query)}`);
+                        const data = await res.json();
+
+                        if(data.length === 0) {
+                            resultsDiv.innerHTML = '<div class="p-4 text-[10px] text-gray-500 uppercase font-bold text-center">Нічого не знайдено</div>';
+                        } else {
+                            resultsDiv.innerHTML = data.map(item => `
+                                <div onclick="addShow(${item.show.id})" class="p-3 hover:bg-white/10 cursor-pointer flex gap-3 border-b border-white/5 last:border-0">
+                                    <img src="${item.show.image?.medium || 'https://via.placeholder.com/210x295?text=?'}" class="w-8 h-10 object-cover rounded shadow">
+                                    <div>
+                                        <div class="font-bold text-xs text-white">${item.show.name}</div>
+                                        <div class="text-[9px] text-gray-500 uppercase">${item.show.status}</div>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                        resultsDiv.classList.remove('hidden');
+                    } catch (err) { console.error(err); }
+                }, 250);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !resultsDiv.contains(e.target)) {
+                    resultsDiv.classList.add('hidden');
+                }
+            });
+        }
+
+        async function addShow(id, fromTrends = false) {
+            if (myShows.find(s => s.id === id)) return;
+
+            try {
+                const res = await fetch(`${TVMAZE_API}/shows/${id}?embed=episodes`);
+                const show = await res.json();
+
+                const newShow = {
+                    id: show.id,
+                    name: show.name,
+                    image: show.image?.medium,
+                    imdb: show.rating?.average,
+                    imdbId: show.externals?.imdb,
+                    officialStatus: show.status,
+                    userStatus: '⏳ У планах',
+                    dateAdded: Date.now(),
+                    currentEpisodeCount: 0,
+                    totalEpisodes: show._embedded?.episodes?.length || 0,
+                    lastAirDate: show._embedded?.episodes?.[show._embedded.episodes.length-1]?.airdate || '',
+                    episodes: (show._embedded?.episodes || []).map(e => ({
+                        id: e.id,
+                        name: e.name,
+                        season: e.season,
+                        number: e.number,
+                        airdate: e.airdate,
+                        watched: false
+                    }))
+                };
+
+                myShows.push(newShow);
+                save(); // локально + (якщо залогінений) у хмару
+                await cloudUpsertShow(newShow);
+
+                updateCounters();
+
+                if (fromTrends) {
+                    loadTrends();
+                } else {
+                    renderGallery();
+                    document.getElementById('searchResults').classList.add('hidden');
+                    document.getElementById('searchInput').value = '';
+                }
+            } catch(e) {
+                alert("Не вдалося додати серіал. Перевірте інтернет.");
+            }
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const emptyState = document.getElementById('emptyState');
+            if(currentTab === 'trends') return;
+
+            let filtered = [...myShows];
+
+            switch(currentTab) {
+                case 'watching': filtered = filtered.filter(s => s.userStatus === '👀 Дивлюсь'); break;
+                case 'planning': filtered = filtered.filter(s => s.userStatus === '⏳ У планах'); break;
+                case 'watched': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто'); break;
+                case 'archive': filtered = filtered.filter(s => s.userStatus === '✅ Переглянуто' && s.officialStatus === 'Ended'); break;
+            }
+
+            const sortVal = document.getElementById('sortOrder').value;
+            if (sortVal === 'dateAdded') filtered.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+            else if (sortVal === 'newest') filtered.sort((a, b) => new Date(b.lastAirDate || 0) - new Date(a.lastAirDate || 0));
+            else if (sortVal === 'alphabet') filtered.sort((a, b) => a.name.localeCompare(b.name));
+            else if (sortVal === 'rating') filtered.sort((a, b) => (b.imdb || 0) - (a.imdb || 0));
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            gallery.innerHTML = filtered.map(show => {
+                const progress = Math.round((show.currentEpisodeCount / show.totalEpisodes) * 100) || 0;
+                return `
+                <div class="card-row glass rounded-xl flex items-center p-3 gap-4 cursor-pointer" onclick="openModal(${show.id})">
+                    <img src="${show.image || 'https://via.placeholder.com/210x295'}" class="w-10 h-14 object-cover rounded shrink-0 grayscale hover:grayscale-0 transition-all">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-sm text-white truncate">${show.name}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-[9px] text-gray-500 font-bold uppercase tracking-tighter">
+                            <span class="text-blue-400">${show.userStatus}</span>
+                            <span>IMDb ${show.imdb || 'N/A'}</span>
+                            <span class="text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</span>
+                        </div>
+                        <div class="w-full h-0.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-blue-600 transition-all duration-500" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function openModal(id) {
+            const show = myShows.find(s => s.id === id);
+            if (!show) return;
+
+            const modal = document.getElementById('modal');
+            const content = document.getElementById('modalContent');
+            const actions = document.getElementById('modalActions');
+
+            const seasons = {};
+            show.episodes.forEach((ep, idx) => {
+                if (!seasons[ep.season]) seasons[ep.season] = [];
+                seasons[ep.season].push({ ...ep, originalIdx: idx });
+            });
+
+            const seasonsHtml = Object.keys(seasons)
+                .map(Number).sort((a,b)=>a-b)
+                .map(seasonNum => {
+                    const seasonEpisodes = seasons[seasonNum];
+                    const allWatched = seasonEpisodes.every(e => e.watched);
+
+                    return `
+                        <div class="season-group mb-6">
+                            <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                                <h4 class="text-xs font-black uppercase text-blue-500 tracking-wider">Сезон ${seasonNum}</h4>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <span class="text-[8px] font-bold text-gray-500 uppercase">Весь сезон</span>
+                                    <input type="checkbox" ${allWatched ? 'checked' : ''} onchange="toggleSeason(${show.id}, ${seasonNum}, this.checked)" class="w-3 h-3 rounded bg-white/5 border-white/10 text-blue-600">
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-1 gap-1">
+                                ${seasonEpisodes.map(ep => `
+                                    <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition ${ep.watched ? 'opacity-30' : ''}">
+                                        <input type="checkbox" ${ep.watched ? 'checked' : ''} onchange="toggleEpisode(${show.id}, ${ep.originalIdx})" class="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-600">
+                                        <div class="flex-1">
+                                            <div class="text-[8px] text-gray-500 font-bold">E${ep.number}</div>
+                                            <div class="text-xs font-bold text-white">${ep.name}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            content.innerHTML = `
+                <div class="mb-6 text-center md:text-left">
+                    <h2 class="text-3xl font-black text-white mb-2">${show.name}</h2>
+                    <div class="flex flex-wrap justify-center md:justify-start gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                        <span>IMDb ${show.imdb || 'N/A'}</span>
+                        <span>${show.totalEpisodes} СЕРІЙ</span>
+                        <span>СТАТУС: ${show.officialStatus}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <div class="glass p-4 rounded-xl">
+                        <label class="text-[9px] font-black text-gray-500 uppercase mb-2 block">Прогрес</label>
+                        <div class="text-2xl font-black text-blue-500">${show.currentEpisodeCount} / ${show.totalEpisodes}</div>
+                    </div>
+                    <div class="glass p-4 rounded-xl">
+                        <label class="text-[9px] font-black text-gray-500 uppercase mb-2 block">Статус користувача</label>
+                        <select onchange="updateShowStatus(${show.id}, this.value)" class="w-full bg-transparent text-xs font-bold text-white outline-none cursor-pointer">
+                            <option value="👀 Дивлюсь" ${show.userStatus === '👀 Дивлюсь' ? 'selected' : ''}>👀 Дивлюсь</option>
+                            <option value="✅ Переглянуто" ${show.userStatus === '✅ Переглянуто' ? 'selected' : ''}>✅ Переглянуто</option>
+                            <option value="⏳ У планах" ${show.userStatus === '⏳ У планах' ? 'selected' : ''}>⏳ У планах</option>
+                            <option value="🛑 Покинуто" ${show.userStatus === '🛑 Покинуто' ? 'selected' : ''}>🛑 Покинуто</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-4 border border-white/5">
+                    <div class="max-h-[300px] overflow-y-auto no-scrollbar">${seasonsHtml}</div>
+                </div>
+            `;
+
+            actions.innerHTML = `<button onclick="removeShow(${show.id})" class="px-4 py-2 text-red-500 text-[9px] font-black uppercase hover:bg-red-500/10 rounded-lg transition">Видалити</button>`;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('modalContainer').classList.replace('scale-95', 'scale-100'), 10);
+        }
+
+        function closeModal() {
+            document.getElementById('modalContainer').classList.replace('scale-100', 'scale-95');
+            setTimeout(() => {
+                document.getElementById('modal').classList.replace('flex', 'hidden');
+                renderGallery();
+            }, 150);
+        }
+
+        async function toggleEpisode(showId, epIdx) {
+            const show = myShows.find(s => s.id === showId);
+            show.episodes[epIdx].watched = !show.episodes[epIdx].watched;
+            show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
+            save();
+            await cloudUpsertShow(show);
+            openModal(showId);
+        }
+
+        async function toggleSeason(showId, seasonNum, watched) {
+            const show = myShows.find(s => s.id === showId);
+            show.episodes.forEach(ep => { if (ep.season == seasonNum) ep.watched = watched; });
+            show.currentEpisodeCount = show.episodes.filter(e => e.watched).length;
+            save();
+            await cloudUpsertShow(show);
+            openModal(showId);
+        }
+
+        async function updateShowStatus(id, value) {
+            const show = myShows.find(s => s.id === id);
+            show.userStatus = value;
+            save();
+            await cloudUpsertShow(show);
+            updateCounters();
+        }
+
+        async function removeShow(id) {
+            if (confirm('Видалити цей серіал з вашої бази?')) {
+                myShows = myShows.filter(s => s.id !== id);
+                save();
+                await cloudDeleteShow(id);
+                updateCounters();
+                closeModal();
+            }
+        }
+
+        function save() {
+            localStorage.setItem('streamTrack_shows', JSON.stringify(myShows));
+        }
+
+        function exportData() {
+            const date = new Date().toISOString().slice(0,10);
+            const blob = new Blob([JSON.stringify(myShows, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `streamtrack_backup_${date}.json`; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    myShows = Array.isArray(data) ? data : [];
+                    save();
+                    updateCounters();
+                    renderGallery();
+
+                    // синхронізація імпорту в хмару (якщо залогінений)
+                    if (currentUser) {
+                        const ref = cloudCollectionRef();
+                        const batch = db.batch();
+                        myShows.forEach(s => {
+                            batch.set(ref.doc(String(s.id)), {
+                                ...s,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            }, { merge: true });
+                        });
+                        await batch.commit();
+                    }
+
+                    alert("Дані успішно імпортовано!");
+                } catch(err) {
+                    alert("Помилка формату файлу");
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
