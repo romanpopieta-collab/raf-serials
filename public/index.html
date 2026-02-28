@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>StreamTrack</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body{
+background:#000;
+color:white;
+font-family:system-ui;
+}
+
+.glass{
+background:#1c1c1e;
+border:1px solid rgba(255,255,255,.08);
+}
+
+.card{
+cursor:pointer;
+padding:12px;
+border-radius:12px;
+display:flex;
+gap:12px;
+align-items:center;
+}
+
+.card:hover{
+background:#2a2a2d;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app" class="max-w-4xl mx-auto p-6">
+
+<header class="flex justify-between mb-6">
+
+<h1 class="text-2xl font-black">
+StreamTrack
+</h1>
+
+<div class="flex gap-2 items-center" id="authBox"></div>
+
+</header>
+
+<input id="searchInput"
+placeholder="Пошук серіалу..."
+class="w-full p-3 mb-6 bg-black border border-white/20 rounded"/>
+
+<div id="gallery" class="flex flex-col gap-2"></div>
+
+</div>
+
+
+<!-- ===============================
+        FIREBASE + APP LOGIC
+================================ -->
+
+<script type="module">
+
+/* ================= FIREBASE ================= */
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+
+import {
+getAuth,
+GoogleAuthProvider,
+signInWithPopup,
+signOut,
+onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+getFirestore,
+doc,
+setDoc,
+deleteDoc,
+collection,
+onSnapshot,
+serverTimestamp
+}
+from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+
+const firebaseConfig={
+apiKey:"AIzaSyBI72wYVkWPnU6IShQA0GzNv2qxkSwPjxc",
+authDomain:"raf-serials.firebaseapp.com",
+projectId:"raf-serials",
+storageBucket:"raf-serials.firebasestorage.app",
+messagingSenderId:"908671765741",
+appId:"1:908671765741:web:bc0573e464c69ec90d90e4"
+};
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+const provider=new GoogleAuthProvider();
+
+
+/* ================= STATE ================= */
+
+let user=null;
+
+let myShows=
+JSON.parse(localStorage.getItem("streamTrack_shows")||"[]");
+
+const API="https://api.tvmaze.com";
+
+
+/* ================= AUTH UI ================= */
+
+function renderAuth(){
+
+const box=document.getElementById("authBox");
+
+box.innerHTML=user?
+`
+<button onclick="logout()"
+class="glass px-3 py-2 rounded">
+Вийти
+</button>
+`
+:
+`
+<button onclick="login()"
+class="glass px-3 py-2 rounded">
+Увійти
+</button>
+`;
+
+}
+
+window.login=()=>signInWithPopup(auth,provider);
+window.logout=()=>signOut(auth);
+
+
+/* ================= SYNC ================= */
+
+let unsub=null;
+
+function startSync(){
+
+const ref=
+collection(db,"users",user.uid,"shows");
+
+unsub=onSnapshot(ref,snap=>{
+
+myShows=snap.docs.map(d=>d.data());
+
+localStorage.setItem(
+"streamTrack_shows",
+JSON.stringify(myShows)
+);
+
+renderGallery();
+
+});
+
+}
+
+async function saveShow(show){
+
+if(!user)return;
+
+await setDoc(
+doc(db,"users",user.uid,"shows",
+String(show.id)),
+{
+...show,
+updatedAt:serverTimestamp()
+});
+
+}
+
+async function deleteShow(id){
+
+if(!user)return;
+
+await deleteDoc(
+doc(db,"users",user.uid,"shows",
+String(id)));
+
+}
+
+
+/* ================= SEARCH ================= */
+
+document
+.getElementById("searchInput")
+.addEventListener("input",
+async e=>{
+
+const q=e.target.value;
+
+if(q.length<3)return;
+
+const res=
+await fetch(`${API}/search/shows?q=${q}`);
+
+const data=await res.json();
+
+if(!data[0])return;
+
+addShow(data[0].show.id);
+
+});
+
+
+/* ================= ADD ================= */
+
+async function addShow(id){
+
+if(myShows.find(s=>s.id===id))
+return;
+
+const res=
+await fetch(`${API}/shows/${id}`);
+
+const show=await res.json();
+
+const newShow={
+id:show.id,
+name:show.name,
+image:show.image?.medium,
+userStatus:"watching"
+};
+
+myShows.push(newShow);
+
+saveLocal();
+await saveShow(newShow);
+
+renderGallery();
+
+}
+
+
+/* ================= RENDER ================= */
+
+function renderGallery(){
+
+const g=document.getElementById("gallery");
+
+g.innerHTML=myShows.map(s=>`
+<div class="card glass">
+<img src="${s.image}"
+class="w-12 rounded"/>
+<div>${s.name}</div>
+
+<button onclick="remove(${s.id})"
+class="ml-auto text-red-400">
+✕
+</button>
+</div>
+`).join("");
+
+}
+
+
+/* ================= REMOVE ================= */
+
+window.remove=async id=>{
+
+myShows=
+myShows.filter(s=>s.id!==id);
+
+saveLocal();
+await deleteShow(id);
+
+renderGallery();
+
+};
+
+
+/* ================= LOCAL ================= */
+
+function saveLocal(){
+localStorage.setItem(
+"streamTrack_shows",
+JSON.stringify(myShows)
+);
+}
+
+
+/* ================= AUTH WATCH ================= */
+
+onAuthStateChanged(auth,u=>{
+
+user=u;
+renderAuth();
+
+if(unsub)unsub();
+
+if(user)startSync();
+
+});
+
+
+renderGallery();
+
+</script>
+
+</body>
+</html>
